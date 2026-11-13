@@ -1,0 +1,1 @@
+# OpenHarmony_on_Nokia_SD660
