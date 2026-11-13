@@ -1,0 +1,5 @@
+# Keep source, workflow and patch bytes stable across Windows and Linux.
+* text=auto eol=lf
+
+# Unified-diff context lines intentionally contain leading spaces/tabs.
+*.patch -whitespace

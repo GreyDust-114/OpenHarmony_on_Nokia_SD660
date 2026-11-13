@@ -1,0 +1,95 @@
+name: Research kernel build (no flashing)
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Kernel-only research target; neither option is a complete phone OS
+        required: true
+        type: choice
+        default: nokia44-baseline
+        options:
+          - nokia44-baseline
+          - oh66-ft8716
+      jobs:
+        description: Compiler parallelism (start with 2)
+        required: true
+        type: choice
+        default: '2'
+        options:
+          - '1'
+          - '2'
+          - '4'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: research-kernel-${{ github.ref }}-${{ inputs.target }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    env:
+      KERNEL_TARGET: ${{ inputs.target }}
+      BUILD_JOBS: ${{ inputs.jobs }}
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - name: Check out research project
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4, pinned
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Record disposable runner resources
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/b2n-kernel/artifacts/logs"
+          {
+            uname -a
+            df -h "$RUNNER_TEMP"
+            free -h
+            nproc
+            printf '\nThis job does not access or flash a phone.\n'
+          } | tee "$RUNNER_TEMP/b2n-kernel/artifacts/logs/runner-resources.log"
+
+      - name: Install compiler dependencies on the runner only
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends \
+              build-essential bc bison flex libssl-dev libelf-dev libncurses-dev \
+              clang-14 llvm-14 lld-14 gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi \
+              git python3 python3-yaml rsync xz-utils
+          } 2>&1 | tee "$RUNNER_TEMP/b2n-kernel/artifacts/logs/runner-packages.log"
+
+      - name: Validate CI code and print the build plan
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -B -m unittest discover -s ci -p 'test_*.py' -v
+          python3 -B ci/build_kernel.py --target "$KERNEL_TARGET" --jobs "$BUILD_JOBS"
+
+      - name: Compile the selected research kernel
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -B ci/build_kernel.py \
+            --target "$KERNEL_TARGET" --jobs "$BUILD_JOBS" \
+            --work-dir "$RUNNER_TEMP/b2n-kernel" --execute
+
+      - name: Preserve logs, configuration and any successful research kernel
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4, pinned
+        with:
+          name: research-${{ inputs.target }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/b2n-kernel/artifacts/
+          include-hidden-files: false
+          if-no-files-found: warn
+          retention-days: 3
+          compression-level: 6

@@ -1,0 +1,17 @@
+# Local editor/workspace state
+.obsidian/
+.publish-ci/
+__pycache__/
+*.py[cod]
+
+# Device/host evidence stays local by default, especially for a public repo.
+# Ignoring does not remove files that were already committed elsewhere.
+docs/research/evidence/root-probe/
+docs/research/evidence/device-kernel.config
+docs/research/evidence/device-summary.txt
+docs/research/generated/
+
+# Local build/download outputs; GitHub artifacts are stored by Actions.
+out/
+build/
+artifacts/

@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "targets": {
+    "nokia44-baseline": {
+      "repository": "https://github.com/nokia-msm8998/android_kernel_nokia_sdm660.git",
+      "commit": "192f8b2a0a1bbb4042df16bdacd802a4321c5f53",
+      "purpose": "Compile the community Nokia B2N baseline; no OpenHarmony token/HDF/HAL port is included.",
+      "defconfig": "vendor/sdm660-perf_defconfig",
+      "fragments": ["vendor/nokia/nokia.config", "vendor/nokia/B2N.config"],
+      "toolchain": "legacy-clang14-gnu-binutils",
+      "image_target": "Image.gz-dtb",
+      "enable_symbols": [],
+      "required_symbols": ["CONFIG_FIH_ONYX=y", "CONFIG_BOOST_NT50356=y", "CONFIG_TOUCHSCREEN_FTS=y"],
+      "patch": null,
+      "object_target": null
+    },
+    "oh66-ft8716": {
+      "repository": "https://github.com/eclipse-oniro-mirrors/kernel_linux_6.6.git",
+      "commit": "31c8f21f4c95d59c8e730038b868109e9244a936",
+      "purpose": "Compile the reviewed FT8716 backport on generic OH6.6 arm64; there is no B2N DTS or boot image.",
+      "defconfig": "defconfig",
+      "fragments": [],
+      "toolchain": "llvm14",
+      "image_target": "Image.gz",
+      "enable_symbols": ["INPUT_EVDEV", "INPUT_TOUCHSCREEN", "TOUCHSCREEN_EDT_FT5X06", "DRM", "DRM_MSM", "DRM_MSM_MDP5", "DRM_MSM_DSI"],
+      "required_symbols": ["CONFIG_INPUT_EVDEV=y", "CONFIG_TOUCHSCREEN_EDT_FT5X06=y"],
+      "patch": "docs/research/drafts/ft8716-oh66-review.patch",
+      "object_target": "drivers/input/touchscreen/edt-ft5x06.o"
+    }
+  }
+}
