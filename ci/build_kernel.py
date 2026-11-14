@@ -24,6 +24,9 @@ ALLOWED_REPOSITORIES = {
     "https://github.com/nokia-msm8998/android_kernel_nokia_sdm660.git",
     "https://github.com/eclipse-oniro-mirrors/kernel_linux_6.6.git",
 }
+ALLOWED_DEPENDENCY_REPOSITORIES = {
+    "https://github.com/eclipse-oniro-mirrors/kernel_linux_common_modules.git",
+}
 
 
 def relative_path(value: str) -> str:
@@ -56,6 +59,19 @@ def load_targets() -> dict:
                 raise ValueError("Invalid Kconfig symbol")
         if target["toolchain"] not in ("legacy-clang14-gnu-binutils", "llvm14"):
             raise ValueError("Unknown toolchain")
+        seen_dependencies = set()
+        for dependency in target.get("source_dependencies", []):
+            name = dependency["name"]
+            if not re.fullmatch(r"[a-z0-9-]+", name) or name in seen_dependencies:
+                raise ValueError("Invalid/duplicate dependency name")
+            seen_dependencies.add(name)
+            if dependency["repository"] not in ALLOWED_DEPENDENCY_REPOSITORIES:
+                raise ValueError("Dependency repository is not allow-listed")
+            if not re.fullmatch(r"[a-f0-9]{40}", dependency["commit"]):
+                raise ValueError("Dependency must be pinned to a full commit")
+            for overlay in dependency["overlays"]:
+                relative_path(overlay["source"])
+                relative_path(overlay["destination"])
     return targets
 
 
@@ -95,6 +111,35 @@ def check_required_config(source: str, required: list[str]) -> None:
         raise ValueError("Required kernel configuration was not retained: " + ", ".join(missing))
 
 
+def materialize_dependencies(kernel: Path, roots: dict[str, Path], dependencies: list[dict]) -> list[dict]:
+    """Populate explicit external module paths before Kconfig, without stubs/deletes.
+
+    Upstream common_modules apply scripts link these module contents into the
+    same paths. Copying the complete pinned subtrees keeps this small standalone
+    build independent of the full OH checkout and is testable without symlinks.
+    """
+    applied = []
+    for dependency in dependencies:
+        root = roots[dependency["name"]]
+        for overlay in dependency["overlays"]:
+            source = root / relative_path(overlay["source"])
+            dest = kernel / relative_path(overlay["destination"])
+            if not (source / "Kconfig").is_file():
+                raise FileNotFoundError(f"Missing external Kconfig source: {source}")
+            if not source.resolve().is_relative_to(root.resolve()) or source.is_symlink():
+                raise ValueError("Dependency source escapes its checkout")
+            if dest.exists() or dest.is_symlink():
+                raise RuntimeError(f"Refusing to replace existing kernel module path: {dest}")
+            if not dest.parent.resolve().is_relative_to(kernel.resolve()):
+                raise ValueError("Dependency destination escapes kernel checkout")
+            if any(p.is_symlink() for p in source.rglob("*")):
+                raise ValueError("Unexpected symlink in external module subtree")
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copytree(source, dest)
+            applied.append({"dependency": dependency["name"], **overlay})
+    return applied
+
+
 def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
@@ -104,7 +149,7 @@ def execute(name: str, target: dict, work: Path, jobs: int) -> None:
         raise RuntimeError("--execute is restricted to a Linux GitHub Actions runner; use plan mode locally")
     source, output, artifacts = work / "source", work / "out", work / "artifacts"
     artifacts.mkdir(parents=True, exist_ok=True)
-    if source.exists() or output.exists():
+    if source.exists() or output.exists() or (work / "dependencies").exists():
         raise RuntimeError("Source/output directory already exists; refusing to overwrite or delete it")
     source.mkdir()
     logs = artifacts / "logs"
@@ -138,7 +183,7 @@ def execute(name: str, target: dict, work: Path, jobs: int) -> None:
             for line in process.stdout:
                 print(line, end="", flush=True)
                 log.write(line)
-                if label in ("verify-source", "source-epoch"):
+                if label in ("verify-source", "source-epoch") or label.startswith("verify-dependency-"):
                     captured.append(line)
             code = process.wait()
         if code:
@@ -166,6 +211,29 @@ def execute(name: str, target: dict, work: Path, jobs: int) -> None:
         env["SOURCE_DATE_EPOCH"] = str(epoch)
         env["KBUILD_BUILD_TIMESTAMP"] = datetime.datetime.fromtimestamp(epoch, datetime.timezone.utc).strftime("%a %b %d %H:%M:%S UTC %Y")
         provenance["source_date_epoch"] = epoch
+        dependency_roots = {}
+        for dependency in target.get("source_dependencies", []):
+            name = dependency["name"]
+            directory = work / "dependencies" / name
+            directory.mkdir(parents=True)
+            prefix = ["git", "-C", str(directory)]
+            run(prefix + ["init", "."], "init-" + name)
+            run(prefix + ["remote", "add", "origin", dependency["repository"]], "set-" + name)
+            run(prefix + ["-c", "protocol.version=2", "fetch", "--depth=1", "origin", dependency["commit"]], "fetch-" + name)
+            run(prefix + ["checkout", "--detach", "FETCH_HEAD"], "checkout-" + name)
+            actual = run(prefix + ["rev-parse", "HEAD"], "verify-dependency-" + name)
+            if actual != dependency["commit"]:
+                raise RuntimeError("Dependency commit verification failed: " + name)
+            dependency_roots[name] = directory
+            licenses = artifacts / "dependency-licenses"
+            licenses.mkdir(exist_ok=True)
+            if (directory / "LICENSE").is_file():
+                shutil.copyfile(directory / "LICENSE", licenses / (name + "-LICENSE"))
+        provenance["stage"] = "prepare-external-kconfig"
+        applied = materialize_dependencies(source, dependency_roots, target.get("source_dependencies", []))
+        if applied:
+            (artifacts / "source-dependencies.json").write_text(json.dumps({"inputs": target["source_dependencies"],
+                "materialized_paths": applied}, indent=2) + "\n", encoding="utf-8")
         if target.get("patch"):
             patch = PROJECT / target["patch"]
             provenance["patch_sha256"] = sha256(patch)

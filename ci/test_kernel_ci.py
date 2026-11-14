@@ -26,6 +26,53 @@ class BuildPlanTests(unittest.TestCase):
             self.assertIn(target["repository"], builder.ALLOWED_REPOSITORIES)
             self.assertRegex(target["commit"], r"^[a-f0-9]{40}$")
 
+    def test_oh66_declares_external_kconfig_sources(self):
+        deps = self.targets["oh66-ft8716"].get("source_dependencies", [])
+        self.assertEqual(len(deps), 1, "OH6.6 configuration requires pinned common_modules sources")
+        self.assertEqual(deps[0]["commit"], "4156fd1cc2f0ab6ab07102e8c1e92c79f644b5d3")
+        destinations = {m["destination"] for m in deps[0]["overlays"]}
+        self.assertIn("fs/proc/memory_security", destinations)
+        self.assertIn("fs/code_sign", destinations)
+        self.assertIn("fs/dec", destinations)
+        self.assertIn("security/xpm", destinations)
+        self.assertIn("security/container_escape_detection", destinations)
+
+    def test_external_kconfig_paths_are_real_sources_before_configuration(self):
+        dependencies = self.targets["oh66-ft8716"]["source_dependencies"]
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            kernel, common = root / "kernel", root / "common"
+            kernel.mkdir()
+            common.mkdir()
+            for overlay in dependencies[0]["overlays"]:
+                module = common / overlay["source"]
+                module.mkdir(parents=True)
+                (module / "Kconfig").write_text("# real fixture source, not an empty stub\n")
+                (module / "module.c").write_text("/* synthetic source fixture */\n")
+            missing = kernel / "fs/proc/memory_security/Kconfig"
+            self.assertFalse(missing.exists())
+            applied = builder.materialize_dependencies(kernel, {"oh-common-modules": common}, dependencies)
+            self.assertEqual(len(applied), 5)
+            self.assertEqual(missing.read_text(), "# real fixture source, not an empty stub\n")
+            self.assertTrue((kernel / "security/xpm/module.c").is_file())
+            with self.assertRaisesRegex(RuntimeError, "Refusing to replace"):
+                builder.materialize_dependencies(kernel, {"oh-common-modules": common}, dependencies)
+            self.assertTrue(missing.is_file())
+
+    def test_missing_external_source_is_not_replaced_by_a_stub(self):
+        dependencies = self.targets["oh66-ft8716"]["source_dependencies"]
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            kernel, common = root / "kernel", root / "common"
+            kernel.mkdir()
+            common.mkdir()
+            with self.assertRaises(FileNotFoundError):
+                builder.materialize_dependencies(kernel, {"oh-common-modules": common}, dependencies)
+            self.assertFalse((kernel / "fs/proc/memory_security/Kconfig").exists())
+
+    def test_nokia_target_does_not_gain_oh_module_overlays(self):
+        self.assertEqual(self.targets["nokia44-baseline"].get("source_dependencies", []), [])
+
     def test_nokia_fragments_order_and_toolchain(self):
         steps = builder.build_plan(self.targets["nokia44-baseline"], "OUT", 2)
         self.assertEqual(steps[0]["command"][-1], "vendor/sdm660-perf_defconfig")

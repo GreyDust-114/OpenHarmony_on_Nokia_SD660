@@ -4,7 +4,7 @@
 
 已准备 `.github/workflows/kernel-build.yml`，只由 **workflow_dispatch 手动触发**，不随push/PR自动编译。每次选择一个目标，默认并行度2、最长120分钟；产物默认保留3天。
 
-这能把当前的内核编译工作从本机搬到GitHub，但**不是把完整OpenHarmony流程原样放进普通runner**。尚未实际运行任何Actions任务，不能宣称云编译已经成功。
+这能把当前的内核编译工作从本机搬到GitHub，但**不是把完整OpenHarmony流程原样放进普通runner**。首次[`nokia44-baseline`任务 #1](https://github.com/GreyDust-114/OpenHarmony_on_Nokia_SD660/actions/runs/43477465281)现已成功，下载产物的digest、有效ARM64 Image及B2N设备树已核对；OH6.6目标尚未运行，旧内核成功也不代表完整OH可用。
 
 | 手动目标 | 输入 | 目标/意义 |
 |---|---|---|
@@ -24,7 +24,7 @@
 
 文档说明公共仓库使用标准GitHub-hosted runner的计算免费。**这不等于所有runner和artifact存储都无限免费**；私有仓库、较大runner与超额用量应先检查账户[Actions计费](https://docs.github.com/en/billing/concepts/product-billing/github-actions)。本次未能成功抓取计费页，不在此固化可能变化的免费分钟数、存储额度或价格。
 
-- 单内核构建比完整OH小得多，适合作为当前尝试；仍以实际runner的可用空间和日志为准，不能承诺一定够。
+- 单内核构建比完整OH小得多，首次旧内核已成功。本次日志显示约146G根盘、初始约87G空闲，拉源码前约85.8GiB空闲；**表列14GB不应理解为每次实际文件系统总量的硬上限**。仍以每次runner日志为准，不保证以后同样容量或能直接完整构建OH。
 - 构建脚本在拉取内核前检查至少8GiB空闲；这只是早期门槛，不保证后续不会耗尽空间。
 - 完整OH/Oniro流程此前文档预算约150–180GB，需要后续单独规划大磁盘远程构建机/runner，并核查费用。
 - 现在不采用删除runner大量预装软件、拆分上传整个编译树、远程SSH“保活”等办法来掩盖空间问题。
@@ -72,12 +72,12 @@ git credential-manager github login --username GreyDust-114 --device
 - runner固定为`ubuntu-22.04`，不使用`self-hosted`或收费大规格标签。
 - 权限仅`contents: read`；checkout不持久化token。
 - checkout/upload-artifact动作固定到查询时的完整提交SHA；内核输入也固定为完整SHA。
-- 只浅拉所选的一棵内核源码，不执行OH `repo sync`。
+- 浅拉所选内核及目标明确声明的小型源码依赖，不执行OH `repo sync`。OH6.6额外固定`kernel_linux_common_modules`提交`4156fd1cc2f0ab6ab07102e8c1e92c79f644b5d3`，在defconfig前准备memory_security、code_sign、dec、xpm、container_escape_detection的真实源码目录；没有删除Kconfig或创建空stub。
 - 在runner安装Clang/LLVM/LLD14、GNU交叉工具及构建依赖；**不安装到你的电脑**。
 - 旧内核使用Clang14 + GNU交叉binutils；新内核使用`LLVM=-14`。这是待首轮CI验证的工具链选择，不是已验证的Nokia原厂工具链。
 - apt包的完整版本尚未完全锁定，会记录实际版本。因此当前是输入可追踪的构建尝试，不承诺跨时间逐字节可复现。
 - 配置合并后检查关键Kconfig是否保留，防止条目被依赖条件静默关掉。
-- OH6.6目标先检查并应用FT8716草案；没有HDF外部仓库/完整OH产品构建，不能把单内核编译说成完整OH集成。
+- OH6.6目标先准备外部Kconfig源码，再检查并应用FT8716草案；没有HDF外部仓库/完整OH产品构建，不能把单内核编译说成完整OH集成。首次尝试已证明触摸补丁可应用，但在defconfig因未准备`fs/proc/memory_security/Kconfig`而停止；依赖准备修复后仍须以新任务日志验证后续阶段。
 
 核心脚本默认只打印计划；需要`--execute`、Linux及Actions环境才运行构建。不会删除已有source/out目录覆盖重试，不会更改启动分区。
 
@@ -100,4 +100,4 @@ artifact包括尽力保留的：
 
 本机已完成：Python CI单元测试、YAML解析和工作流bash片段语法检查（使用Git Bash的`-n`，不执行片段）。没有在本机安装编译依赖，也没有进行内核构建。
 
-云端尚待验证：内核拉取、完整配置合并、工具链兼容性、实际空间/时间需求和编译结果。首轮失败也有价值：有固定源码/阶段日志后，才能针对真正的构建错误修复，不预先堆砌未验证补丁。
+云端已验证旧4.4基线的源码拉取、配置合并及Clang14构建；脚本拉源码至结束约12分钟。日志有大量objdump调试格式提示，后续应单独做对照检查。OH6.6目标、OH内核改造、HAL运行环境和实机启动仍待验证，不把一次基线编译成功扩展成整体兼容结论。

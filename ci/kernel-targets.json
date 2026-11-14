@@ -18,6 +18,20 @@
       "repository": "https://github.com/eclipse-oniro-mirrors/kernel_linux_6.6.git",
       "commit": "31c8f21f4c95d59c8e730038b868109e9244a936",
       "purpose": "Compile the reviewed FT8716 backport on generic OH6.6 arm64; there is no B2N DTS or boot image.",
+      "source_dependencies": [
+        {
+          "name": "oh-common-modules",
+          "repository": "https://github.com/eclipse-oniro-mirrors/kernel_linux_common_modules.git",
+          "commit": "4156fd1cc2f0ab6ab07102e8c1e92c79f644b5d3",
+          "overlays": [
+            {"source": "memory_security", "destination": "fs/proc/memory_security"},
+            {"source": "code_sign", "destination": "fs/code_sign"},
+            {"source": "dec", "destination": "fs/dec"},
+            {"source": "xpm", "destination": "security/xpm"},
+            {"source": "container_escape_detection", "destination": "security/container_escape_detection"}
+          ]
+        }
+      ],
       "defconfig": "defconfig",
       "fragments": [],
       "toolchain": "llvm14",
