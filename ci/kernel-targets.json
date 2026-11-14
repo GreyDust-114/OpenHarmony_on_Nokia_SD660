@@ -23,6 +23,11 @@
           "path": "docs/research/drafts/oh66-common-headers-review.patch",
           "origin": "https://github.com/eclipse-oniro-mirrors/kernel_linux_patches/blob/8183895af567d5f739af4fa7cf5856e608c4e046/linux-6.6/qemu-arm-linux_patch/oh_headers.patch",
           "sha256": "9ecdd3593580a7cffb04595f23ba3df9fad3ced2699a87c32d9c13f6d8091b8d"
+        },
+        {
+          "path": "docs/research/drafts/oh66-kvm-coalesced-sync-review.patch",
+          "origin": "https://github.com/gregkh/linux/blob/3a8ababb8b6a0ced2be230b60b6e3ddbd8d67014/virt/kvm/coalesced_mmio.c",
+          "sha256": "35aaa178a6dbf197f70bc88d44fd9e96fa39beab9b7251ca1960b7f9840209cc"
         }
       ],
       "source_dependencies": [

@@ -79,6 +79,7 @@ git credential-manager github login --username GreyDust-114 --device
 - 配置合并后检查关键Kconfig是否保留，防止条目被依赖条件静默关掉。
 - OH6.6目标先准备外部Kconfig源码及固定公共头文件支持补丁，再检查并应用FT8716草案。首次因缺少`fs/proc/memory_security/Kconfig`停止；修复后defconfig/olddefconfig已通过，随后在编译准备阶段发现`linux/xpm_types.h`缺失，尚未到触摸驱动本体。
 - `oh66-common-headers-review.patch`原样来自`kernel_linux_patches`固定提交`8183895af567d5f739af4fa7cf5856e608c4e046`的`linux-6.6/qemu-arm-linux_patch/oh_headers.patch`，SHA256写入目标定义并在执行前验证。它添加6个真实公共头文件、修正3处PAGEFLAG_FALSE宏参数；不包含QEMU启动地址、设备树、ARM boot Makefile或watchdog改动。已经对固定6.6的page-flags.h快照检查应用，后续以云编译验证兼容性。这是独立研究性支持补丁，不是宣称已复现完整OH manifest构建。
+- 后续#4已通过FT8716对象编译，完整Image失败于KVM调用旧的`kvm_iodevice_destructor`。已将该调用处按Linux v6.6.101（`3a8ababb8b6a0ced2be230b60b6e3ddbd8d67014`）同步为`oh66-kvm-coalesced-sync-review.patch`；匹配头文件和总线销毁函数原本已与该版本一致，因此不能重新加声明/空实现或重复销毁。保留KVM和编译错误检查，回归在真实固定源码上应用补丁并核对完整文件SHA256，修复后与同版本stable文件一致。完整镜像仍需新任务验证。
 - 没有HDF外部仓库/完整OH产品构建，不能把单内核编译说成完整OH集成。
 
 核心脚本默认只打印计划；需要`--execute`、Linux及Actions环境才运行构建。不会删除已有source/out目录覆盖重试，不会更改启动分区。

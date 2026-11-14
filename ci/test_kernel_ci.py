@@ -39,7 +39,7 @@ class BuildPlanTests(unittest.TestCase):
 
     def test_oh66_missing_header_support_is_pinned(self):
         patches = self.targets["oh66-ft8716"].get("support_patches", [])
-        self.assertEqual(len(patches), 1, "OH6.6 needs its external common-header preparation")
+        self.assertEqual(len(patches), 2, "OH6.6 needs common headers and the stable KVM caller synchronization")
         patch = builder.PROJECT / patches[0]["path"]
         self.assertEqual(builder.sha256(patch), patches[0]["sha256"])
         text = patch.read_text(encoding="utf-8")
@@ -48,6 +48,28 @@ class BuildPlanTests(unittest.TestCase):
         self.assertIn("+struct cs_info {", text)
         self.assertNotIn("arch/arm/boot/Makefile", text)
         self.assertEqual(self.targets["nokia44-baseline"].get("support_patches", []), [])
+
+    def test_kvm_coalesced_caller_matches_stable_destruction_contract(self):
+        fixture = builder.PROJECT / "ci/fixtures/oh66-kvm-coalesced_mmio.c"
+        self.assertEqual(builder.sha256(fixture),
+                         "affd97d507157f56bd2c3b0beebe36e399b781004b1ed018901bbf9c7997d570")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "virt/kvm/coalesced_mmio.c"
+            source.parent.mkdir(parents=True)
+            source.write_bytes(fixture.read_bytes())
+            subprocess.run(["git", "init", "-q", str(root)], check=True, capture_output=True)
+            for spec in self.targets["oh66-ft8716"].get("support_patches", []):
+                if spec["path"].endswith("oh66-kvm-coalesced-sync-review.patch"):
+                    patch = builder.PROJECT / spec["path"]
+                    self.assertEqual(builder.sha256(patch), spec["sha256"])
+                    prefix = ["git", "-c", "core.autocrlf=false", "-C", str(root)]
+                    subprocess.run(prefix + ["apply", "--check", str(patch)], check=True, capture_output=True)
+                    subprocess.run(prefix + ["apply", str(patch)], check=True, capture_output=True)
+            self.assertFalse("kvm_iodevice_destructor(" in source.read_text(),
+                             "KVM caller still uses retired helper and duplicates bus-owned destruction")
+            self.assertEqual(builder.sha256(source),
+                             "414f9b16edb7fd8562af7730ccdf47f6278c1b5ac17dcde46748b7f091fa8ffb")
 
     def test_external_kconfig_paths_are_real_sources_before_configuration(self):
         dependencies = self.targets["oh66-ft8716"]["source_dependencies"]
