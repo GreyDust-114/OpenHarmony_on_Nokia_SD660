@@ -18,6 +18,13 @@
       "repository": "https://github.com/eclipse-oniro-mirrors/kernel_linux_6.6.git",
       "commit": "31c8f21f4c95d59c8e730038b868109e9244a936",
       "purpose": "Compile the reviewed FT8716 backport on generic OH6.6 arm64; there is no B2N DTS or boot image.",
+      "support_patches": [
+        {
+          "path": "docs/research/drafts/oh66-common-headers-review.patch",
+          "origin": "https://github.com/eclipse-oniro-mirrors/kernel_linux_patches/blob/8183895af567d5f739af4fa7cf5856e608c4e046/linux-6.6/qemu-arm-linux_patch/oh_headers.patch",
+          "sha256": "9ecdd3593580a7cffb04595f23ba3df9fad3ced2699a87c32d9c13f6d8091b8d"
+        }
+      ],
       "source_dependencies": [
         {
           "name": "oh-common-modules",

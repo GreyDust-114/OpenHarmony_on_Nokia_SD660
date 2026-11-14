@@ -4,7 +4,7 @@
 
 已准备 `.github/workflows/kernel-build.yml`，只由 **workflow_dispatch 手动触发**，不随push/PR自动编译。每次选择一个目标，默认并行度2、最长120分钟；产物默认保留3天。
 
-这能把当前的内核编译工作从本机搬到GitHub，但**不是把完整OpenHarmony流程原样放进普通runner**。首次[`nokia44-baseline`任务 #1](https://github.com/GreyDust-114/OpenHarmony_on_Nokia_SD660/actions/runs/43477465281)现已成功，下载产物的digest、有效ARM64 Image及B2N设备树已核对；OH6.6目标尚未运行，旧内核成功也不代表完整OH可用。
+这能把当前的内核编译工作从本机搬到GitHub，但**不是把完整OpenHarmony流程原样放进普通runner**。首次[`nokia44-baseline`任务 #1](https://github.com/GreyDust-114/OpenHarmony_on_Nokia_SD660/actions/runs/43477465281)现已成功，下载产物的digest、有效ARM64 Image及B2N设备树已核对；OH6.6目标已经开始云端尝试，尚未生成成功镜像；旧内核成功也不代表完整OH可用。
 
 | 手动目标 | 输入 | 目标/意义 |
 |---|---|---|
@@ -77,7 +77,9 @@ git credential-manager github login --username GreyDust-114 --device
 - 旧内核使用Clang14 + GNU交叉binutils；新内核使用`LLVM=-14`。这是待首轮CI验证的工具链选择，不是已验证的Nokia原厂工具链。
 - apt包的完整版本尚未完全锁定，会记录实际版本。因此当前是输入可追踪的构建尝试，不承诺跨时间逐字节可复现。
 - 配置合并后检查关键Kconfig是否保留，防止条目被依赖条件静默关掉。
-- OH6.6目标先准备外部Kconfig源码，再检查并应用FT8716草案；没有HDF外部仓库/完整OH产品构建，不能把单内核编译说成完整OH集成。首次尝试已证明触摸补丁可应用，但在defconfig因未准备`fs/proc/memory_security/Kconfig`而停止；依赖准备修复后仍须以新任务日志验证后续阶段。
+- OH6.6目标先准备外部Kconfig源码及固定公共头文件支持补丁，再检查并应用FT8716草案。首次因缺少`fs/proc/memory_security/Kconfig`停止；修复后defconfig/olddefconfig已通过，随后在编译准备阶段发现`linux/xpm_types.h`缺失，尚未到触摸驱动本体。
+- `oh66-common-headers-review.patch`原样来自`kernel_linux_patches`固定提交`8183895af567d5f739af4fa7cf5856e608c4e046`的`linux-6.6/qemu-arm-linux_patch/oh_headers.patch`，SHA256写入目标定义并在执行前验证。它添加6个真实公共头文件、修正3处PAGEFLAG_FALSE宏参数；不包含QEMU启动地址、设备树、ARM boot Makefile或watchdog改动。已经对固定6.6的page-flags.h快照检查应用，后续以云编译验证兼容性。这是独立研究性支持补丁，不是宣称已复现完整OH manifest构建。
+- 没有HDF外部仓库/完整OH产品构建，不能把单内核编译说成完整OH集成。
 
 核心脚本默认只打印计划；需要`--execute`、Linux及Actions环境才运行构建。不会删除已有source/out目录覆盖重试，不会更改启动分区。
 
@@ -100,4 +102,4 @@ artifact包括尽力保留的：
 
 本机已完成：Python CI单元测试、YAML解析和工作流bash片段语法检查（使用Git Bash的`-n`，不执行片段）。没有在本机安装编译依赖，也没有进行内核构建。
 
-云端已验证旧4.4基线的源码拉取、配置合并及Clang14构建；脚本拉源码至结束约12分钟。日志有大量objdump调试格式提示，后续应单独做对照检查。OH6.6目标、OH内核改造、HAL运行环境和实机启动仍待验证，不把一次基线编译成功扩展成整体兼容结论。
+云端已验证旧4.4基线的源码拉取、配置合并及Clang14构建；脚本拉源码至结束约12分钟。日志有大量objdump调试格式提示，后续应单独做对照检查。OH6.6镜像编译、OH功能集成、HAL运行环境和实机启动仍待验证，不把一次基线编译成功扩展成整体兼容结论。

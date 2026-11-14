@@ -54,6 +54,10 @@ def load_targets() -> dict:
         for path in (target.get("patch"), target.get("object_target")):
             if path:
                 relative_path(path)
+        for patch in target.get("support_patches", []):
+            relative_path(patch["path"])
+            if not re.fullmatch(r"[a-f0-9]{64}", patch["sha256"]):
+                raise ValueError("Support patch must have a pinned SHA256")
         for symbol in target["enable_symbols"]:
             if not re.fullmatch(r"[A-Z0-9_]+", symbol):
                 raise ValueError("Invalid Kconfig symbol")
@@ -234,6 +238,17 @@ def execute(name: str, target: dict, work: Path, jobs: int) -> None:
         if applied:
             (artifacts / "source-dependencies.json").write_text(json.dumps({"inputs": target["source_dependencies"],
                 "materialized_paths": applied}, indent=2) + "\n", encoding="utf-8")
+        for index, spec in enumerate(target.get("support_patches", []), 1):
+            patch = PROJECT / spec["path"]
+            digest = sha256(patch)
+            if digest != spec["sha256"]:
+                raise ValueError("Support patch checksum mismatch: " + spec["path"])
+            provenance.setdefault("support_patch_sha256s", {})[spec["path"]] = digest
+            saved = artifacts / "support-patches"
+            saved.mkdir(exist_ok=True)
+            shutil.copyfile(patch, saved / patch.name)
+            run(["git", "apply", "--check", str(patch)], f"check-support-patch-{index}")
+            run(["git", "apply", str(patch)], f"apply-support-patch-{index}")
         if target.get("patch"):
             patch = PROJECT / target["patch"]
             provenance["patch_sha256"] = sha256(patch)

@@ -37,6 +37,18 @@ class BuildPlanTests(unittest.TestCase):
         self.assertIn("security/xpm", destinations)
         self.assertIn("security/container_escape_detection", destinations)
 
+    def test_oh66_missing_header_support_is_pinned(self):
+        patches = self.targets["oh66-ft8716"].get("support_patches", [])
+        self.assertEqual(len(patches), 1, "OH6.6 needs its external common-header preparation")
+        patch = builder.PROJECT / patches[0]["path"]
+        self.assertEqual(builder.sha256(patch), patches[0]["sha256"])
+        text = patch.read_text(encoding="utf-8")
+        self.assertIn("b/include/linux/xpm_types.h", text)
+        self.assertIn("+struct xpm_region {", text)
+        self.assertIn("+struct cs_info {", text)
+        self.assertNotIn("arch/arm/boot/Makefile", text)
+        self.assertEqual(self.targets["nokia44-baseline"].get("support_patches", []), [])
+
     def test_external_kconfig_paths_are_real_sources_before_configuration(self):
         dependencies = self.targets["oh66-ft8716"]["source_dependencies"]
         with tempfile.TemporaryDirectory() as tmp:
