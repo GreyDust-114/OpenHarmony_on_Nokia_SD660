@@ -289,3 +289,31 @@ new file mode 100644
 +MODULE_AUTHOR("linux-mdss-dsi-panel-driver-generator <fix@me>"); // FIXME
 +MODULE_DESCRIPTION("DRM driver for B2N FT8716U 1080p video mode DSI panel");
 +MODULE_LICENSE("GPL");
+diff --git a/drivers/gpu/drm/panel/Kconfig b/drivers/gpu/drm/panel/Kconfig
+--- a/drivers/gpu/drm/panel/Kconfig
++++ b/drivers/gpu/drm/panel/Kconfig
+@@ -8,6 +8,16 @@
+ menu "Display Panels"
+ 	depends on DRM && DRM_PANEL
+ 
++config DRM_PANEL_B2N_FT8716U
++	tristate "B2N FT8716U research panel"
++	depends on OF && GPIOLIB
++	depends on DRM_MIPI_DSI
++	depends on BACKLIGHT_CLASS_DEVICE
++	help
++	  Build the OH6.6 FT8716U panel port used by the Nokia B2N
++	  research target. Transport and board power sequencing are
++	  developed separately; this option enables link validation.
++
+ config DRM_PANEL_ABT_Y030XX067A
+ 	tristate "ABT Y030XX067A 320x480 LCD panel"
+ 	depends on OF && SPI
+diff --git a/drivers/gpu/drm/panel/Makefile b/drivers/gpu/drm/panel/Makefile
+--- a/drivers/gpu/drm/panel/Makefile
++++ b/drivers/gpu/drm/panel/Makefile
+@@ -1,3 +1,4 @@
+ # SPDX-License-Identifier: GPL-2.0
++obj-$(CONFIG_DRM_PANEL_B2N_FT8716U) += panel-ft8716u.o
+ obj-$(CONFIG_DRM_PANEL_ABT_Y030XX067A) += panel-abt-y030xx067a.o
+ obj-$(CONFIG_DRM_PANEL_ARM_VERSATILE) += panel-arm-versatile.o

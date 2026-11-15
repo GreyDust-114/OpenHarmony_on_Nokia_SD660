@@ -71,8 +71,8 @@ class B2nBuildTests(unittest.TestCase):
         self.assertNotIn("dtb_targets", self.targets["oh66-ft8716"])
         self.assertEqual(self.target["support_patches"], self.targets["oh66-ft8716"]["support_patches"])
         self.assertEqual(self.target["panel_object_target"], "drivers/gpu/drm/panel/panel-ft8716u.o")
-        self.assertEqual(self.target["display_patch"]["sha256"], "7a22234d1c8c5c0e54bd992dfd105e6f352d32e4eb61b8229cdf88ef0965d65f")
-        # GitHub checkout normalizes this patch to LF via .gitattributes; the local Windows copy may retain CRLF.
+        normalized_patch = (builder.PROJECT / self.target["display_patch"]["path"]).read_bytes().replace(b"\r\n", b"\n")
+        self.assertEqual(self.target["display_patch"]["sha256"], __import__("hashlib").sha256(normalized_patch).hexdigest())
         self.assertIn("compile-ft8716u-panel-object", labels)
         self.assertNotIn("DRM_PANEL_SIMPLE", self.target["enable_symbols"])
         self.assertNotIn("CONFIG_DRM_PANEL_SIMPLE=y", self.target["required_symbols"])

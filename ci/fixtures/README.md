@@ -42,6 +42,16 @@ original undeclared `PG_xpm_readonly` error. On hosts without GCC this compiler
 test is explicitly skipped; no compiler is installed locally. This matrix is
 not a full kernel or runtime test.
 
+## B2N panel link fixtures
+
+`oh66-panel-Kconfig` and `oh66-panel-Makefile` are unchanged source snapshots
+from `drivers/gpu/drm/panel/{Kconfig,Makefile}` at the same pinned kernel
+commit `31c8f21f4c95d59c8e730038b868109e9244a936`. Original SPDX notices are
+retained. `test_display_link.py` applies both board and display patches in a
+temporary Git tree, checks registration and exact panel source, and tests the
+final System.map contract with missing/undefined/prefix-only negative cases.
+No phone evidence is included.
+
 ## B2N DTB build fixtures
 
 `oh66-qcom-Makefile` is the unchanged qcom DTS Makefile (canonical LF) at

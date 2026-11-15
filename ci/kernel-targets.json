@@ -96,7 +96,7 @@
       "display_patch": {
         "path": "docs/research/drafts/oh66-b2n-display-ft8716u-review.patch",
         "origin": "B2N FT8716U DRM panel port to OH6.6 DSI/DRM APIs; commands based on sdm660-mainline panel reference",
-        "sha256": "7a22234d1c8c5c0e54bd992dfd105e6f352d32e4eb61b8229cdf88ef0965d65f"
+        "sha256": "104b4bda0c58f1b562d9c5784479609b50f4633563bbf75e345d976b65a46b47"
       },
       "dtb_targets": ["qcom/sdm660-nokia-b2n.dtb", "qcom/sdm660-xiaomi-lavender.dtb"],
       "dtb_profiles": {"qcom/sdm660-nokia-b2n.dtb": "b2n-touch"},
@@ -121,8 +121,9 @@
       "fragments": [],
       "toolchain": "llvm14",
       "image_target": "Image.gz",
-      "enable_symbols": ["ARCH_QCOM", "I2C_QUP", "PINCTRL_SDM660", "INPUT_EVDEV", "INPUT_TOUCHSCREEN", "TOUCHSCREEN_EDT_FT5X06", "DRM", "DRM_MSM", "DRM_MSM_MDP5", "DRM_MSM_DSI"],
-      "required_symbols": ["CONFIG_ARCH_QCOM=y", "CONFIG_I2C_QUP=y", "CONFIG_PINCTRL_SDM660=y", "CONFIG_INPUT_EVDEV=y", "CONFIG_TOUCHSCREEN_EDT_FT5X06=y"],
+      "enable_symbols": ["ARCH_QCOM", "I2C_QUP", "PINCTRL_SDM660", "INPUT_EVDEV", "INPUT_TOUCHSCREEN", "TOUCHSCREEN_EDT_FT5X06", "DRM", "QCOM_OCMEM", "QCOM_LLCC", "BACKLIGHT_CLASS_DEVICE", "DRM_MSM", "DRM_MSM_MDP5", "DRM_MSM_DSI", "DRM_MSM_DSI_14NM_PHY", "DRM_PANEL_B2N_FT8716U"],
+      "required_symbols": ["CONFIG_ARCH_QCOM=y", "CONFIG_I2C_QUP=y", "CONFIG_PINCTRL_SDM660=y", "CONFIG_INPUT_EVDEV=y", "CONFIG_TOUCHSCREEN_EDT_FT5X06=y", "CONFIG_DRM_MSM=y", "CONFIG_DRM_MSM_MDP5=y", "CONFIG_DRM_MSM_DSI=y", "CONFIG_DRM_MSM_DSI_14NM_PHY=y", "CONFIG_BACKLIGHT_CLASS_DEVICE=y", "CONFIG_DRM_PANEL_B2N_FT8716U=y"],
+      "required_link_symbols": ["mdss_dsi_ft8716u_driver", "msm_platform_driver", "dsi_driver"],
       "patch": "docs/research/drafts/ft8716-oh66-review.patch",
       "object_target": "drivers/input/touchscreen/edt-ft5x06.o",
       "panel_object_target": "drivers/gpu/drm/panel/panel-ft8716u.o"

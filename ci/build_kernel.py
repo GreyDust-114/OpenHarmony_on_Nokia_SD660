@@ -65,6 +65,9 @@ def load_targets() -> dict:
             relative_path(patch["path"])
             if not re.fullmatch(r"[a-f0-9]{64}", patch["sha256"]):
                 raise ValueError("Support patch must have a pinned SHA256")
+        for symbol in target.get("required_link_symbols", []):
+            if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", symbol):
+                raise ValueError("Invalid required link symbol")
         for symbol in target.get("disable_symbols", []):
             if not re.fullmatch(r"[A-Z0-9_]+", symbol):
                 raise ValueError("Invalid Kconfig disable symbol")
@@ -134,6 +137,20 @@ def check_required_config(source: str, required: list[str], required_disabled: l
     missing_disabled = [line for line in (required_disabled or []) if line not in actual]
     if missing or missing_disabled:
         raise ValueError("Required kernel configuration was not retained: " + ", ".join(missing + missing_disabled))
+
+
+def check_link_symbols(system_map: str, required: list[str]) -> dict:
+    """Accept only defined symbols in the final vmlinux map, not object logs."""
+    actual = {}
+    for line in system_map.splitlines():
+        fields = line.split()
+        if len(fields) == 3 and re.fullmatch(r"[0-9a-fA-F]+", fields[0]):
+            if fields[1] in ("t", "T", "d", "D", "r", "R", "b", "B"):
+                actual[fields[2]] = {"address": fields[0], "type": fields[1]}
+    missing = [symbol for symbol in required if symbol not in actual]
+    if missing:
+        raise ValueError("Required symbols absent from final System.map: " + ", ".join(missing))
+    return {symbol: actual[symbol] for symbol in required}
 
 
 def materialize_dependencies(kernel: Path, roots: dict[str, Path], dependencies: list[dict]) -> list[dict]:
@@ -316,6 +333,12 @@ def execute(name: str, target: dict, work: Path, jobs: int) -> None:
             if step["label"] == "resolve-config":
                 check_required_config((output / ".config").read_text(), target["required_symbols"],
                                       target.get("required_disabled_symbols", []))
+        if target.get("required_link_symbols"):
+            provenance["stage"] = "validate-linked-display"
+            linked = check_link_symbols((output / "System.map").read_text(), target["required_link_symbols"])
+            provenance["linked_display_symbols"] = linked
+            (artifacts / "linked-display-validation.json").write_text(
+                json.dumps(linked, indent=2) + "\n", encoding="utf-8")
         image = output / "arch/arm64/boot" / target["image_target"]
         if not image.is_file() or image.stat().st_size == 0:
             raise RuntimeError("Build returned success but the expected kernel image is absent/empty")
