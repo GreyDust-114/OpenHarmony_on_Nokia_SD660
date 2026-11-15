@@ -51,7 +51,7 @@ def load_targets() -> dict:
             raise ValueError("Kernel source must be pinned to a full commit")
         for path in [target["defconfig"], *target["fragments"], target["image_target"]]:
             relative_path(path)
-        for path in (target.get("patch"), target.get("object_target")):
+        for path in (target.get("patch"), target.get("object_target"), target.get("panel_object_target")):
             if path:
                 relative_path(path)
         for dtb in target.get("dtb_targets", []):
@@ -60,7 +60,8 @@ def load_targets() -> dict:
         for dtb, profile in target.get("dtb_profiles", {}).items():
             if dtb not in target.get("dtb_targets", []) or profile != "b2n-touch":
                 raise ValueError("Invalid compiled-DTB contract")
-        for patch in target.get("support_patches", []) + ([target["board_patch"]] if target.get("board_patch") else []):
+        all_patches = target.get("support_patches", []) + ([target["board_patch"]] if target.get("board_patch") else []) + ([target["display_patch"]] if target.get("display_patch") else [])
+        for patch in all_patches:
             relative_path(patch["path"])
             if not re.fullmatch(r"[a-f0-9]{64}", patch["sha256"]):
                 raise ValueError("Support patch must have a pinned SHA256")
@@ -120,6 +121,8 @@ def build_plan(target: dict, output: str, jobs: int) -> list[dict]:
         steps.append({"label": "compile-device-trees", "command": base + [f"-j{jobs}", *target["dtb_targets"]]})
     if target.get("object_target"):
         steps.append({"label": "compile-ft8716-object", "command": base + [f"-j{jobs}", target["object_target"]]})
+    if target.get("panel_object_target"):
+        steps.append({"label": "compile-ft8716u-panel-object", "command": base + [f"-j{jobs}", target["panel_object_target"]]})
     compile_flags = (["-k"] if target.get("keep_going_on_compile_error", False) else []) + [f"-j{jobs}"]
     steps.append({"label": "compile-kernel", "command": base + compile_flags + [target["image_target"]]})
     return steps
@@ -279,7 +282,7 @@ def execute(name: str, target: dict, work: Path, jobs: int) -> None:
         if applied:
             (artifacts / "source-dependencies.json").write_text(json.dumps({"inputs": target["source_dependencies"],
                 "materialized_paths": applied}, indent=2) + "\n", encoding="utf-8")
-        patches = target.get("support_patches", []) + ([target["board_patch"]] if target.get("board_patch") else [])
+        patches = target.get("support_patches", []) + ([target["board_patch"]] if target.get("board_patch") else []) + ([target["display_patch"]] if target.get("display_patch") else [])
         for index, spec in enumerate(patches, 1):
             patch = PROJECT / spec["path"]
             digest = sha256(patch)

@@ -70,6 +70,9 @@ class B2nBuildTests(unittest.TestCase):
         self.assertNotIn("-k", dtbs)
         self.assertNotIn("dtb_targets", self.targets["oh66-ft8716"])
         self.assertEqual(self.target["support_patches"], self.targets["oh66-ft8716"]["support_patches"])
+        self.assertEqual(self.target["panel_object_target"], "drivers/gpu/drm/panel/panel-ft8716u.o")
+        self.assertEqual(self.target["display_patch"]["sha256"], builder.sha256(builder.PROJECT / self.target["display_patch"]["path"]))
+        self.assertIn("compile-ft8716u-panel-object", labels)
 
     def test_board_patch_applies_and_installs_exact_draft(self):
         spec = self.target["board_patch"]

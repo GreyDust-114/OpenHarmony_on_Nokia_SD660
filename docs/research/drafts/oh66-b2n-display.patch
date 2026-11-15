@@ -1,0 +1,40 @@
+diff --git a/arch/arm64/boot/dts/qcom/sdm660-nokia-b2n.dts b/arch/arm64/boot/dts/qcom/sdm660-nokia-b2n.dts
+--- a/arch/arm64/boot/dts/qcom/sdm660-nokia-b2n.dts
++++ b/arch/arm64/boot/dts/qcom/sdm660-nokia-b2n.dts
+@@ -1,3 +1,4 @@
++/* B2N display stage: panel transport is supplied by panel-ft8716u. */
+ /dts-v1/;
+@@ -50,10 +51,31 @@
+-&mdss { status = "disabled"; };
+-&mdss_dsi0 { status = "disabled"; };
+-&mdss_dsi0_phy { status = "disabled"; };
+-&mmss_smmu { status = "disabled"; };
++&mdss { status = "okay"; };
++
++&mdss_dsi0 {
++	status = "okay";
++	#address-cells = <1>;
++	#size-cells = <0>;
++
++	panel: panel@0 {
++		compatible = "focaltech,ft8716u";
++		reg = <0>;
++		reset-gpios = <&tlmm 62 GPIO_ACTIVE_LOW>;
++		/* NT50356 supply phandles are added in the bias patch. */
++
++		port {
++			panel_in: endpoint {
++				remote-endpoint = <&mdss_dsi0_out>;
++			};
++		};
++	};
++};
++
++&mdss_dsi0_out {
++	data-lanes = <0 1 2 3>;
++	remote-endpoint = <&panel_in>;
++};
++
++&mdss_dsi0_phy { status = "okay"; };
++&mmss_smmu { status = "okay"; };
+*** End Patch
