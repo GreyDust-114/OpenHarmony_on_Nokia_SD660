@@ -1,0 +1,80 @@
+diff --git a/arch/arm64/boot/dts/qcom/sdm660-nokia-b2n.dts b/arch/arm64/boot/dts/qcom/sdm660-nokia-b2n.dts
+new file mode 100644
+--- /dev/null
++++ b/arch/arm64/boot/dts/qcom/sdm660-nokia-b2n.dts
+@@ -0,0 +1,64 @@
++// SPDX-License-Identifier: GPL-2.0-only
++/dts-v1/;
++
++/*
++ * Nokia 7 Plus B2N board draft for the OH6.6 SDM660 tree.
++ * Base: the same tree's sdm660-xiaomi-lavender.dts.
++ * Hardware-specific values are limited to saved B2N evidence.
++ */
++#include "sdm660.dtsi"
++#include "pm660.dtsi"
++#include "pm660l.dtsi"
++#include <dt-bindings/gpio/gpio.h>
++#include <dt-bindings/interrupt-controller/irq.h>
++
++/ {
++	model = "Nokia 7 Plus B2N (SDM660)";
++	compatible = "nokia,b2n", "qcom,sdm660";
++	chassis-type = "handset";
++
++	aliases { serial0 = &blsp1_uart2; };
++
++	chosen { stdout-path = "serial0:115200n8"; };
++};
++
++&adreno_gpu { status = "disabled"; };
++&blsp1_uart2 { status = "okay"; };
++
++/* B2N evidence: I2C4/0x38, IRQ GPIO67, reset GPIO66, 1080x2160. */
++&blsp_i2c4 {
++	status = "okay";
++
++	touchscreen@38 {
++		compatible = "focaltech,ft8716";
++		reg = <0x38>;
++		interrupts-extended = <&tlmm 67 IRQ_TYPE_EDGE_FALLING>;
++		reset-gpios = <&tlmm 66 GPIO_ACTIVE_LOW>;
++		pinctrl-names = "default";
++		pinctrl-0 = <&b2n_touch_irq &b2n_touch_reset>;
++		touchscreen-size-x = <1080>;
++		touchscreen-size-y = <2160>;
++		status = "okay";
++	};
++};
++
++&mdss { status = "disabled"; };
++&mdss_dsi0 { status = "disabled"; };
++&mdss_dsi0_phy { status = "disabled"; };
++&mmss_smmu { status = "disabled"; };
++
++/* The NT50356 provider and B2N DSI panel endpoint are the next patches. */
++
++&tlmm {
++	b2n_touch_irq: b2n-touch-irq-state {
++		pins = "gpio67";
++		function = "gpio";
++		input-enable;
++	};
++
++	b2n_touch_reset: b2n-touch-reset-state {
++		pins = "gpio66";
++		function = "gpio";
++		output-high;
++	};
++};
+diff --git a/arch/arm64/boot/dts/qcom/Makefile b/arch/arm64/boot/dts/qcom/Makefile
+--- a/arch/arm64/boot/dts/qcom/Makefile
++++ b/arch/arm64/boot/dts/qcom/Makefile
+@@ -165,6 +165,7 @@
+ dtb-$(CONFIG_ARCH_QCOM)	+= sdm632-fairphone-fp3.dtb
+ dtb-$(CONFIG_ARCH_QCOM)	+= sdm632-motorola-ocean.dtb
+ dtb-$(CONFIG_ARCH_QCOM)	+= sdm636-sony-xperia-ganges-mermaid.dtb
++dtb-$(CONFIG_ARCH_QCOM)	+= sdm660-nokia-b2n.dtb
+ dtb-$(CONFIG_ARCH_QCOM)	+= sdm660-xiaomi-lavender.dtb
+ dtb-$(CONFIG_ARCH_QCOM)	+= sdm670-google-sargo.dtb
+ dtb-$(CONFIG_ARCH_QCOM)	+= sdm845-cheza-r1.dtb

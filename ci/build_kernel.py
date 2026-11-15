@@ -54,7 +54,13 @@ def load_targets() -> dict:
         for path in (target.get("patch"), target.get("object_target")):
             if path:
                 relative_path(path)
-        for patch in target.get("support_patches", []):
+        for dtb in target.get("dtb_targets", []):
+            if not re.fullmatch(r"qcom/[A-Za-z0-9_-]+\.dtb", dtb):
+                raise ValueError("Invalid DTB target")
+        for dtb, profile in target.get("dtb_profiles", {}).items():
+            if dtb not in target.get("dtb_targets", []) or profile != "b2n-touch":
+                raise ValueError("Invalid compiled-DTB contract")
+        for patch in target.get("support_patches", []) + ([target["board_patch"]] if target.get("board_patch") else []):
             relative_path(patch["path"])
             if not re.fullmatch(r"[a-f0-9]{64}", patch["sha256"]):
                 raise ValueError("Support patch must have a pinned SHA256")
@@ -110,6 +116,8 @@ def build_plan(target: dict, output: str, jobs: int) -> list[dict]:
         steps.append({"label": "disable-" + symbol.lower(), "command": ["bash", "scripts/config", "--file",
                       str(Path(output) / ".config"), "--disable", symbol]})
     steps.append({"label": "resolve-config", "command": base + ["olddefconfig"]})
+    if target.get("dtb_targets"):
+        steps.append({"label": "compile-device-trees", "command": base + [f"-j{jobs}", *target["dtb_targets"]]})
     if target.get("object_target"):
         steps.append({"label": "compile-ft8716-object", "command": base + [f"-j{jobs}", target["object_target"]]})
     compile_flags = (["-k"] if target.get("keep_going_on_compile_error", False) else []) + [f"-j{jobs}"]
@@ -154,6 +162,25 @@ def materialize_dependencies(kernel: Path, roots: dict[str, Path], dependencies:
     return applied
 
 
+def collect_device_trees(target: dict, source: Path, output: Path, artifacts: Path) -> dict:
+    from device_tree import inspect_dtb
+
+    result = {}
+    for name in target.get("dtb_targets", []):
+        relative_path(name)
+        compiled = output / "arch/arm64/boot/dts" / name
+        info = inspect_dtb(compiled, target.get("dtb_profiles", {}).get(name))
+        dest = artifacts / "research-device-trees" / name
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(compiled, dest)
+        dts = Path(name).with_suffix(".dts")
+        saved = artifacts / "device-tree-sources" / dts
+        saved.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source / "arch/arm64/boot/dts" / dts, saved)
+        result[name] = info
+    return result
+
+
 def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
@@ -175,7 +202,7 @@ def execute(name: str, target: dict, work: Path, jobs: int) -> None:
         "workflow_commit": os.environ.get("GITHUB_SHA"), "workflow_ref": os.environ.get("GITHUB_REF"),
         "run_id": os.environ.get("GITHUB_RUN_ID"), "run_attempt": os.environ.get("GITHUB_RUN_ATTEMPT"),
         "started_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-        "warning": "Research kernel only. No boot.img, B2N OH6.6 DTS or complete OH system. Do not flash."}
+        "warning": "Research kernel/DTB outputs; no boot.img or complete phone system. No runtime testing. Do not flash."}
     (artifacts / "DO-NOT-FLASH.txt").write_text(provenance["warning"] + "\n", encoding="utf-8")
     shutil.copyfile(TARGETS_FILE, artifacts / "kernel-targets.json")
     plan = build_plan(target, str(output), jobs)
@@ -248,7 +275,8 @@ def execute(name: str, target: dict, work: Path, jobs: int) -> None:
         if applied:
             (artifacts / "source-dependencies.json").write_text(json.dumps({"inputs": target["source_dependencies"],
                 "materialized_paths": applied}, indent=2) + "\n", encoding="utf-8")
-        for index, spec in enumerate(target.get("support_patches", []), 1):
+        patches = target.get("support_patches", []) + ([target["board_patch"]] if target.get("board_patch") else [])
+        for index, spec in enumerate(patches, 1):
             patch = PROJECT / spec["path"]
             digest = sha256(patch)
             if digest != spec["sha256"]:
@@ -273,6 +301,11 @@ def execute(name: str, target: dict, work: Path, jobs: int) -> None:
                 raise FileNotFoundError(f"Missing fragment: {fragment}")
         for step in plan:
             run(step["command"], step["label"])
+            if step["label"] == "compile-device-trees":
+                provenance["stage"] = "validate-device-trees"
+                provenance["device_trees"] = collect_device_trees(target, source, output, artifacts)
+                (artifacts / "device-tree-validation.json").write_text(
+                    json.dumps(provenance["device_trees"], indent=2) + "\n", encoding="utf-8")
             if step["label"] == "resolve-config":
                 check_required_config((output / ".config").read_text(), target["required_symbols"],
                                       target.get("required_disabled_symbols", []))

@@ -41,3 +41,15 @@ GCC, `-Werror` and `-fsyntax-only`. A negative control must reproduce the
 original undeclared `PG_xpm_readonly` error. On hosts without GCC this compiler
 test is explicitly skipped; no compiler is installed locally. This matrix is
 not a full kernel or runtime test.
+
+## B2N DTB build fixtures
+
+`oh66-qcom-Makefile` is the unchanged qcom DTS Makefile (canonical LF) at
+kernel commit `31c8f21f4c95d59c8e730038b868109e9244a936`:
+`arch/arm64/boot/dts/qcom/Makefile`.
+SHA256: `5ee3610b80756f073fd198444404ee83e1c36aa44e39c70b1835d7a421abc527`.
+
+The B2N regression applies the actual board patch to this fixture and verifies
+that the registered DTS equals the checked-in draft. FDT binary tests generate
+synthetic trees in memory, checking phandle resolution, PMIC inclusion and the
+GPIO67 falling-edge contract. No original device DTB is published as a fixture.

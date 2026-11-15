@@ -40,6 +40,24 @@ python -B -m unittest discover -s docs/research/scripts -p 'test*.py' -v
 
 脚本只生成评审材料，git检查使用临时源码文件。检查通过不等于编译成功，更不等于可安全启动。完整计划见 [minimal-port-plan.md](../minimal-port-plan.md)。
 
+## B2N / OH6.6 DTS移植草案
+
+`oh66-b2n.dts`以同一OH6.6源码树已有的`sdm660-xiaomi-lavender.dts`为结构模板，填入当前B2N硬件证据：
+
+- `compatible = "nokia,b2n", "qcom,sdm660"`；
+- PM660/PM660L公共include；
+- `blsp_i2c4`、触摸地址`0x38`；
+- IRQ GPIO67、reset GPIO66；
+- touchscreen尺寸1080×2160；
+- SDM660 pinctrl、MDSS/DSI/DSI PHY、Adreno、MMSS SMMU使用同版本公共树；本轮显示/GPU保持disabled，待面板供电补丁一起启用。
+- GPIO67使用B2N旧DT/驱动一致的下降沿；GPIO66低有效，新增各自的GPIO pinctrl状态。
+
+`oh66-b2n-dts-review.patch`将此草案安装为`arch/arm64/boot/dts/qcom/sdm660-nokia-b2n.dts`，并注册到qcom Makefile。独立目标`oh66-b2n-dts`先编译B2N及Lavender对照DTB，再核对二进制中的PMIC、I2C地址、GPIO phandle、IRQ类型和尺寸，随后编FT8716对象及Image.gz。
+
+当前只做B2N DTS骨架，panel endpoint、FT8716U DRM panel和NT50356 provider单列为后续补丁。主线参考与逐项差异见[SDM660公开移植参考](../sdm660-open-source-references.md)。
+
+OH6.6已包含`sdm660-xiaomi-lavender.dts`并在qcom Makefile注册。本轮沿用该版本公共include，仅新增B2N板级文件与Makefile条目；原有两个构建目标定义保持一致。
+
 ## OH6.6公共头文件准备
 
 `oh66-common-headers-review.patch`原样保存自[固定的上游镜像补丁](https://github.com/eclipse-oniro-mirrors/kernel_linux_patches/blob/8183895af567d5f739af4fa7cf5856e608c4e046/linux-6.6/qemu-arm-linux_patch/oh_headers.patch)，SHA256为`9ecdd3593580a7cffb04595f23ba3df9fad3ced2699a87c32d9c13f6d8091b8d`。

@@ -10,8 +10,9 @@
 |---|---|---|
 | `nokia44-baseline`（建议第一次选它） | Nokia社区4.4.302固定提交，SD660基础defconfig + Nokia/B2N配置片段 | 编译`Image.gz-dtb`，先证明B2N社区基线可构建；**尚无OH token/HDF/HAL适配** |
 | `oh66-ft8716` | OH6.6固定提交 + 已评审7行补丁，通用arm64 defconfig | 先编FT8716驱动对象，再编`Image.gz`；**没有B2N新DTS、面板驱动或完整OH系统** |
+| `oh66-b2n-dts` | 同一OH6.6基线 + B2N DTS增量，Lavender为同版本对照 | 先编译并核对两个DTB，再编FT8716对象及`Image.gz` |
 
-两个输出均为研究内核，**不是可以直接刷到手机的boot.img**。它们不包含已验证的bootloader/ramdisk/分区恢复方案。编译成功也不能证明本机启动、显示或短信可用。
+这些输出均为研究内核，**不是可以直接刷到手机的boot.img**。它们不包含已验证的bootloader/ramdisk/分区恢复方案。编译成功也不能证明本机启动、显示或短信可用。
 
 ## 普通runner的资源限制
 
@@ -48,11 +49,13 @@ git credential-manager github login --username GreyDust-114 --device
    ```text
    .gitattributes
    .github/workflows/kernel-build.yml
-   ci/                     # 包含构建脚本、目标定义、两个test_*.py及公开源码fixtures/
+   ci/                     # 包含构建脚本、test_*.py、FDT解析器及公开源码fixtures/
    docs/research/drafts/ft8716-oh66-review.patch
    docs/research/drafts/oh66-common-headers-review.patch
    docs/research/drafts/oh66-kvm-coalesced-sync-review.patch
    docs/research/drafts/oh66-xpm-mmflags-guard-review.patch
+   docs/research/drafts/oh66-b2n.dts
+   docs/research/drafts/oh66-b2n-dts-review.patch
    ```
 
    可同时上传本页、README与`.gitignore`。CI不需要手机采集证据、完整研究快照、短信数据或vendor二进制。
@@ -88,6 +91,16 @@ git credential-manager github login --username GreyDust-114 --device
 
 核心脚本默认只打印计划；需要`--execute`、Linux及Actions环境才运行构建。不会删除已有source/out目录覆盖重试，不会更改启动分区。
 
+## B2N DTS独立目标
+
+`oh66-b2n-dts`使用OH6.6已有的`sdm660.dtsi`、`sdm630.dtsi`、PM660/PM660L；板级结构参考同版本`sdm660-xiaomi-lavender.dts`。原有`oh66-ft8716`定义保持不变。
+
+编译顺序：配置验收 → `qcom/sdm660-nokia-b2n.dtb`与Lavender对照DTB → 二进制FDT检查 → FT8716对象 → Image.gz。
+
+B2N检查项：`nokia,b2n`、PM660/PM660L、`/soc/i2c@c178000/touchscreen@38`、FT8716 compatible、GPIO67下降沿、GPIO66低有效、1080×2160尺寸以及实际GPIO controller phandle。草案包含触摸pinctrl；显示/GPU状态保持disabled，下一阶段加入panel与NT50356供电。
+
+新增artifact：`research-device-trees/qcom/*.dtb`、`device-tree-sources/qcom/*.dts`、`device-tree-validation.json`。这些是DTB编译和已知板级属性验收；schema专项校验随面板/供电binding继续加入。
+
 ## 产物与失败日志
 
 artifact包括尽力保留的：
@@ -107,4 +120,4 @@ artifact包括尽力保留的：
 
 本机已完成：Python CI单元测试、YAML解析和工作流bash片段语法检查（使用Git Bash的`-n`，不执行片段）。没有在本机安装编译依赖，也没有进行内核构建。
 
-云端已验证旧4.4基线的源码拉取、配置合并及Clang14构建；脚本拉源码至结束约12分钟。日志有大量objdump调试格式提示，后续应单独做对照检查。OH6.6镜像编译、OH功能集成、HAL运行环境和实机启动仍待验证，不把一次基线编译成功扩展成整体兼容结论。
+云端已验证旧4.4基线的源码拉取、配置合并及Clang14构建；脚本拉源码至结束约12分钟。日志有大量objdump调试格式提示，后续应单独做对照检查。这次 OH6.6 generic ARM64＋FT8716对象任务已经成功，且已审查本地下载artifact。请不要把`Image.gz`当作boot.img或刷写包；它没有B2N DTS、ramdisk、vendor和完整OH系统。审查报告见`docs/research/oh66-build-review.md`。

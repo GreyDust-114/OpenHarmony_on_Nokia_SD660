@@ -66,6 +66,60 @@
       "required_symbols": ["CONFIG_INPUT_EVDEV=y", "CONFIG_TOUCHSCREEN_EDT_FT5X06=y"],
       "patch": "docs/research/drafts/ft8716-oh66-review.patch",
       "object_target": "drivers/input/touchscreen/edt-ft5x06.o"
+    },
+    "oh66-b2n-dts": {
+      "repository": "https://github.com/eclipse-oniro-mirrors/kernel_linux_6.6.git",
+      "commit": "31c8f21f4c95d59c8e730038b868109e9244a936",
+      "purpose": "Compile B2N SDM660 DTB and same-version Lavender control; verify compiled FT8716 bus/GPIO properties before Image.gz.",
+      "support_patches": [
+        {
+          "path": "docs/research/drafts/oh66-common-headers-review.patch",
+          "origin": "https://github.com/eclipse-oniro-mirrors/kernel_linux_patches/blob/8183895af567d5f739af4fa7cf5856e608c4e046/linux-6.6/qemu-arm-linux_patch/oh_headers.patch",
+          "sha256": "9ecdd3593580a7cffb04595f23ba3df9fad3ced2699a87c32d9c13f6d8091b8d"
+        },
+        {
+          "path": "docs/research/drafts/oh66-kvm-coalesced-sync-review.patch",
+          "origin": "https://github.com/gregkh/linux/blob/3a8ababb8b6a0ced2be230b60b6e3ddbd8d67014/virt/kvm/coalesced_mmio.c",
+          "sha256": "35aaa178a6dbf197f70bc88d44fd9e96fa39beab9b7251ca1960b7f9840209cc"
+        },
+        {
+          "path": "docs/research/drafts/oh66-xpm-mmflags-guard-review.patch",
+          "origin": "https://github.com/eclipse-oniro-mirrors/kernel_linux_6.6/blob/31c8f21f4c95d59c8e730038b868109e9244a936/include/trace/events/mmflags.h",
+          "sha256": "18cf10ee6c0e12d567bcd4f63cc439bce12dd77dd561531d969f430e11e758b3"
+        }
+      ],
+      "board_patch": {
+        "path": "docs/research/drafts/oh66-b2n-dts-review.patch",
+        "origin": "B2N board delta on pinned OH6.6 SDM660/PM660 includes; structure follows same-tree sdm660-xiaomi-lavender.dts",
+        "sha256": "433a3b3edd18b9c38fc85bee7fe148f00cfaf7fd1c5b271c4c5c5eeea670ffd6"
+      },
+      "dtb_targets": ["qcom/sdm660-nokia-b2n.dtb", "qcom/sdm660-xiaomi-lavender.dtb"],
+      "dtb_profiles": {"qcom/sdm660-nokia-b2n.dtb": "b2n-touch"},
+      "keep_going_on_compile_error": true,
+      "disable_symbols": ["KSM", "SCSI_UFS_EXYNOS"],
+      "required_disabled_symbols": ["# CONFIG_KSM is not set", "# CONFIG_SCSI_UFS_EXYNOS is not set"],
+      "source_dependencies": [
+        {
+          "name": "oh-common-modules",
+          "repository": "https://github.com/eclipse-oniro-mirrors/kernel_linux_common_modules.git",
+          "commit": "4156fd1cc2f0ab6ab07102e8c1e92c79f644b5d3",
+          "overlays": [
+            {"source": "memory_security", "destination": "fs/proc/memory_security"},
+            {"source": "code_sign", "destination": "fs/code_sign"},
+            {"source": "dec", "destination": "fs/dec"},
+            {"source": "xpm", "destination": "security/xpm"},
+            {"source": "container_escape_detection", "destination": "security/container_escape_detection"}
+          ]
+        }
+      ],
+      "defconfig": "defconfig",
+      "fragments": [],
+      "toolchain": "llvm14",
+      "image_target": "Image.gz",
+      "enable_symbols": ["ARCH_QCOM", "I2C_QUP", "PINCTRL_SDM660", "INPUT_EVDEV", "INPUT_TOUCHSCREEN", "TOUCHSCREEN_EDT_FT5X06", "DRM", "DRM_MSM", "DRM_MSM_MDP5", "DRM_MSM_DSI"],
+      "required_symbols": ["CONFIG_ARCH_QCOM=y", "CONFIG_I2C_QUP=y", "CONFIG_PINCTRL_SDM660=y", "CONFIG_INPUT_EVDEV=y", "CONFIG_TOUCHSCREEN_EDT_FT5X06=y"],
+      "patch": "docs/research/drafts/ft8716-oh66-review.patch",
+      "object_target": "drivers/input/touchscreen/edt-ft5x06.o"
     }
   }
 }

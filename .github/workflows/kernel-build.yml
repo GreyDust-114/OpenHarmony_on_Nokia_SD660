@@ -4,13 +4,14 @@ on:
   workflow_dispatch:
     inputs:
       target:
-        description: Kernel-only research target; neither option is a complete phone OS
+        description: Kernel and DTB research target
         required: true
         type: choice
         default: nokia44-baseline
         options:
           - nokia44-baseline
           - oh66-ft8716
+          - oh66-b2n-dts
       jobs:
         description: Compiler parallelism (start with 2)
         required: true
