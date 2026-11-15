@@ -74,6 +74,8 @@ class B2nBuildTests(unittest.TestCase):
         self.assertEqual(self.target["display_patch"]["sha256"], "7a22234d1c8c5c0e54bd992dfd105e6f352d32e4eb61b8229cdf88ef0965d65f")
         # GitHub checkout normalizes this patch to LF via .gitattributes; the local Windows copy may retain CRLF.
         self.assertIn("compile-ft8716u-panel-object", labels)
+        self.assertNotIn("DRM_PANEL_SIMPLE", self.target["enable_symbols"])
+        self.assertNotIn("CONFIG_DRM_PANEL_SIMPLE=y", self.target["required_symbols"])
 
     def test_board_patch_applies_and_installs_exact_draft(self):
         spec = self.target["board_patch"]
