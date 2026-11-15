@@ -97,9 +97,9 @@ git credential-manager github login --username GreyDust-114 --device
 
 编译顺序：配置验收 → `qcom/sdm660-nokia-b2n.dtb`与Lavender对照DTB → 二进制FDT检查 → FT8716对象 → Image.gz。
 
-B2N检查项：`nokia,b2n`、PM660/PM660L、`/soc/i2c@c178000/touchscreen@38`、FT8716 compatible、GPIO67下降沿、GPIO66低有效、1080×2160尺寸以及实际GPIO controller phandle。草案包含触摸pinctrl；显示/GPU状态保持disabled，下一阶段加入panel与NT50356供电。
+B2N检查项：`nokia,b2n`、PM660/PM660L、FT8716 compatible及其父I2C控制器`reg=0xc178000`、GPIO67下降沿、GPIO66低有效、1080×2160尺寸以及实际GPIO controller phandle。检查器按compatible与MMIO地址定位，兼容`/soc@0`与`/soc`层级。草案包含触摸pinctrl；显示/GPU状态保持disabled，下一阶段加入panel与NT50356供电。
 
-新增artifact：`research-device-trees/qcom/*.dtb`、`device-tree-sources/qcom/*.dts`、`device-tree-validation.json`。这些是DTB编译和已知板级属性验收；schema专项校验随面板/供电binding继续加入。
+新增artifact：`research-device-trees/qcom/*.dtb`、`device-tree-sources/qcom/*.dts`、`device-tree-validation.json`。原始DTB/DTS在属性验收前保存，方便审查检查器自身的失败。这些是DTB编译和已知板级属性验收；schema专项校验随面板/供电binding继续加入。
 
 ## 产物与失败日志
 

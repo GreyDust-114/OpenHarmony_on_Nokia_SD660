@@ -169,7 +169,8 @@ def collect_device_trees(target: dict, source: Path, output: Path, artifacts: Pa
     for name in target.get("dtb_targets", []):
         relative_path(name)
         compiled = output / "arch/arm64/boot/dts" / name
-        info = inspect_dtb(compiled, target.get("dtb_profiles", {}).get(name))
+        if not compiled.is_file() or not 40 <= compiled.stat().st_size <= 16 * 1024**2:
+            raise ValueError("Missing or oversized compiled DTB: " + name)
         dest = artifacts / "research-device-trees" / name
         dest.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(compiled, dest)
@@ -177,7 +178,10 @@ def collect_device_trees(target: dict, source: Path, output: Path, artifacts: Pa
         saved = artifacts / "device-tree-sources" / dts
         saved.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(source / "arch/arm64/boot/dts" / dts, saved)
-        result[name] = info
+    # Preserve the complete diagnostic inputs even if a semantic check fails.
+    for name in target.get("dtb_targets", []):
+        result[name] = inspect_dtb(output / "arch/arm64/boot/dts" / name,
+                                   target.get("dtb_profiles", {}).get(name))
     return result
 
 

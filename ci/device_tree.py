@@ -92,7 +92,16 @@ def inspect_dtb(path, profile=None):
     if len(controllers) != 1:
         raise ValueError("Expected exactly one SDM660 GPIO controller")
     gpio = cells(props[(controllers[0], "phandle")])
-    touch = "/soc/i2c@c178000/touchscreen@38"
+    touch_nodes = [node for (node, name), value in props.items() if name == "compatible"
+                   and "focaltech,ft8716" in strings(value)]
+    if len(touch_nodes) != 1:
+        raise ValueError("Expected exactly one FT8716 node")
+    touch = touch_nodes[0]
+    controller = touch.rsplit("/", 1)[0]
+    if cells(props.get((controller, "reg"), b"")) != [0xc178000, 0x600]:
+        raise ValueError("B2N touch I2C controller address mismatch")
+    if "qcom,i2c-qup-v2.2.1" not in strings(props.get((controller, "compatible"), b"")):
+        raise ValueError("B2N touch I2C controller compatible mismatch")
     expected = {"reg": [0x38], "interrupts-extended": gpio + [67, 2],
                 "reset-gpios": gpio + [66, 1], "touchscreen-size-x": [1080], "touchscreen-size-y": [2160]}
     for name, value in expected.items():

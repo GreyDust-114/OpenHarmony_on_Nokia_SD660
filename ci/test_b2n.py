@@ -15,18 +15,19 @@ def u32(*values):
     return struct.pack(">" + "I" * len(values), *values)
 
 
-def fixture_fdt(irq=2, pmics=True):
+def fixture_fdt(irq=2, pmics=True, soc="/soc@0", address=0xc178000):
     props = {
         "/": {"model": b"Nokia 7 Plus B2N (SDM660)\0", "compatible": b"nokia,b2n\0qcom,sdm660\0"},
-        "/soc/pinctrl@1000000": {"compatible": b"qcom,sdm660-pinctrl\0", "phandle": u32(42)},
-        "/soc/i2c@c178000/touchscreen@38": {
+        soc + "/pinctrl@1000000": {"compatible": b"qcom,sdm660-pinctrl\0", "phandle": u32(42)},
+        soc + "/i2c@c178000": {"compatible": b"qcom,i2c-qup-v2.2.1\0", "reg": u32(address, 0x600)},
+        soc + "/i2c@c178000/touchscreen@38": {
             "compatible": b"focaltech,ft8716\0", "status": b"okay\0", "reg": u32(0x38),
             "interrupts-extended": u32(42, 67, irq), "reset-gpios": u32(42, 66, 1),
             "touchscreen-size-x": u32(1080), "touchscreen-size-y": u32(2160)},
     }
     if pmics:
-        props["/soc/spmi/pmic@0"] = {"compatible": b"qcom,pm660\0qcom,spmi-pmic\0"}
-        props["/soc/spmi/pmic@2"] = {"compatible": b"qcom,pm660l\0qcom,spmi-pmic\0"}
+        props[soc + "/spmi/pmic@0"] = {"compatible": b"qcom,pm660\0qcom,spmi-pmic\0"}
+        props[soc + "/spmi/pmic@2"] = {"compatible": b"qcom,pm660l\0qcom,spmi-pmic\0"}
     root = {"props": {}, "children": {}}
     names, offsets = bytearray(), {}
     for path, values in props.items():
@@ -92,9 +93,12 @@ class B2nBuildTests(unittest.TestCase):
     def test_compiled_dtb_contract_rejects_wrong_edge_and_missing_pmics(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "b2n.dtb"
-            path.write_bytes(fixture_fdt())
-            self.assertEqual(inspect_dtb(path, "b2n-touch")["b2n_touch_contract"]["reg"], [56])
-            for blob in (fixture_fdt(irq=1), fixture_fdt(pmics=False)):
+            for soc in ("/soc", "/soc@0"):
+                path.write_bytes(fixture_fdt(soc=soc))
+                details = inspect_dtb(path, "b2n-touch")["b2n_touch_contract"]
+                self.assertEqual(details["path"], soc + "/i2c@c178000/touchscreen@38")
+                self.assertEqual(details["reg"], [56])
+            for blob in (fixture_fdt(irq=1), fixture_fdt(pmics=False), fixture_fdt(address=0xc175000)):
                 path.write_bytes(blob)
                 with self.assertRaises(ValueError):
                     inspect_dtb(path, "b2n-touch")
@@ -118,6 +122,23 @@ class B2nBuildTests(unittest.TestCase):
             self.assertEqual(len(result), 1)
             self.assertEqual((artifact / "research-device-trees/qcom/sdm660-nokia-b2n.dtb").read_bytes(), dtb.read_bytes())
             self.assertEqual((artifact / "device-tree-sources/qcom/sdm660-nokia-b2n.dts").read_bytes(), dts.read_bytes())
+
+    def test_all_diagnostic_dtbs_survive_a_contract_failure(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            names = ["qcom/sdm660-nokia-b2n.dtb", "qcom/sdm660-xiaomi-lavender.dtb"]
+            for name in names:
+                dtb = root / "out/arch/arm64/boot/dts" / name
+                dts = root / "src/arch/arm64/boot/dts" / Path(name).with_suffix(".dts")
+                dtb.parent.mkdir(parents=True, exist_ok=True)
+                dts.parent.mkdir(parents=True, exist_ok=True)
+                dtb.write_bytes(fixture_fdt(irq=1))
+                dts.write_text("// synthetic source\n")
+            target = {"dtb_targets": names, "dtb_profiles": {names[0]: "b2n-touch"}}
+            with self.assertRaises(ValueError):
+                builder.collect_device_trees(target, root / "src", root / "out", root / "artifact")
+            for name in names:
+                self.assertTrue((root / "artifact/research-device-trees" / name).is_file())
 
     def test_unsafe_dtb_target_rejected(self):
         data = json.loads(builder.TARGETS_FILE.read_text())
