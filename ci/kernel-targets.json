@@ -96,7 +96,7 @@
       "display_patch": {
         "path": "docs/research/drafts/oh66-b2n-display-ft8716u-review.patch",
         "origin": "B2N FT8716U DRM panel port to OH6.6 DSI/DRM APIs; commands based on sdm660-mainline panel reference",
-        "sha256": "77dec6c7ff54194162e74d0bf46424f20b775c497322114df29e093443fff992"
+        "sha256": "7a22234d1c8c5c0e54bd992dfd105e6f352d32e4eb61b8229cdf88ef0965d65f"
       },
       "dtb_targets": ["qcom/sdm660-nokia-b2n.dtb", "qcom/sdm660-xiaomi-lavender.dtb"],
       "dtb_profiles": {"qcom/sdm660-nokia-b2n.dtb": "b2n-touch"},
