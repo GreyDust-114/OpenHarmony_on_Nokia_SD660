@@ -58,6 +58,9 @@ def load_targets() -> dict:
             relative_path(patch["path"])
             if not re.fullmatch(r"[a-f0-9]{64}", patch["sha256"]):
                 raise ValueError("Support patch must have a pinned SHA256")
+        for symbol in target.get("disable_symbols", []):
+            if not re.fullmatch(r"[A-Z0-9_]+", symbol):
+                raise ValueError("Invalid Kconfig disable symbol")
         for symbol in target["enable_symbols"]:
             if not re.fullmatch(r"[A-Z0-9_]+", symbol):
                 raise ValueError("Invalid Kconfig symbol")
@@ -103,6 +106,9 @@ def build_plan(target: dict, output: str, jobs: int) -> list[dict]:
     for symbol in target["enable_symbols"]:
         steps.append({"label": "enable-" + symbol.lower(), "command": ["bash", "scripts/config", "--file",
                       str(Path(output) / ".config"), "--enable", symbol]})
+    for symbol in target.get("disable_symbols", []):
+        steps.append({"label": "disable-" + symbol.lower(), "command": ["bash", "scripts/config", "--file",
+                      str(Path(output) / ".config"), "--disable", symbol]})
     steps.append({"label": "resolve-config", "command": base + ["olddefconfig"]})
     if target.get("object_target"):
         steps.append({"label": "compile-ft8716-object", "command": base + [f"-j{jobs}", target["object_target"]]})
@@ -111,11 +117,12 @@ def build_plan(target: dict, output: str, jobs: int) -> list[dict]:
     return steps
 
 
-def check_required_config(source: str, required: list[str]) -> None:
+def check_required_config(source: str, required: list[str], required_disabled: list[str] | None = None) -> None:
     actual = set(source.splitlines())
     missing = [line for line in required if line not in actual]
-    if missing:
-        raise ValueError("Required kernel configuration was not retained: " + ", ".join(missing))
+    missing_disabled = [line for line in (required_disabled or []) if line not in actual]
+    if missing or missing_disabled:
+        raise ValueError("Required kernel configuration was not retained: " + ", ".join(missing + missing_disabled))
 
 
 def materialize_dependencies(kernel: Path, roots: dict[str, Path], dependencies: list[dict]) -> list[dict]:
@@ -267,7 +274,8 @@ def execute(name: str, target: dict, work: Path, jobs: int) -> None:
         for step in plan:
             run(step["command"], step["label"])
             if step["label"] == "resolve-config":
-                check_required_config((output / ".config").read_text(), target["required_symbols"])
+                check_required_config((output / ".config").read_text(), target["required_symbols"],
+                                      target.get("required_disabled_symbols", []))
         image = output / "arch/arm64/boot" / target["image_target"]
         if not image.is_file() or image.stat().st_size == 0:
             raise RuntimeError("Build returned success but the expected kernel image is absent/empty")

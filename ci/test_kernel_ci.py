@@ -48,7 +48,10 @@ class BuildPlanTests(unittest.TestCase):
         self.assertIn("+struct xpm_region {", text)
         self.assertIn("+struct cs_info {", text)
         self.assertNotIn("arch/arm/boot/Makefile", text)
-        self.assertEqual(self.targets["nokia44-baseline"].get("support_patches", []), [])
+        self.assertEqual(self.targets["nokia44-baseline"].get("disable_symbols", []), [])
+        self.assertEqual(self.targets["oh66-ft8716"]["disable_symbols"], ["KSM", "SCSI_UFS_EXYNOS"])
+        self.assertEqual(self.targets["oh66-ft8716"]["required_disabled_symbols"],
+                         ["# CONFIG_KSM is not set", "# CONFIG_SCSI_UFS_EXYNOS is not set"])
 
     def test_kvm_coalesced_caller_matches_stable_destruction_contract(self):
         fixture = builder.PROJECT / "ci/fixtures/oh66-kvm-coalesced_mmio.c"
@@ -134,6 +137,8 @@ class BuildPlanTests(unittest.TestCase):
         self.assertLess(labels.index("compile-ft8716-object"), labels.index("compile-kernel"))
         self.assertIn("LLVM=-14", steps[-1]["command"])
         self.assertEqual(steps[-1]["command"][-1], "Image.gz")
+        self.assertIn("disable-ksm", labels)
+        self.assertIn("disable-scsi_ufs_exynos", labels)
         self.assertFalse(any("B2N.dtb" in part for s in steps for part in s["command"]))
         self.assertTrue((builder.PROJECT / self.targets["oh66-ft8716"]["patch"]).is_file())
 
@@ -143,9 +148,12 @@ class BuildPlanTests(unittest.TestCase):
                 builder.build_plan(self.targets["nokia44-baseline"], "OUT", jobs)
 
     def test_required_config_rejects_silent_kconfig_drop(self):
-        builder.check_required_config("CONFIG_TEST=y\n", ["CONFIG_TEST=y"])
+        builder.check_required_config("CONFIG_TEST=y\n", ["CONFIG_TEST=y"], [])
         with self.assertRaises(ValueError):
             builder.check_required_config("# CONFIG_TEST is not set\n", ["CONFIG_TEST=y"])
+        builder.check_required_config("CONFIG_TEST=y\n# CONFIG_OTHER is not set\n", [], ["# CONFIG_OTHER is not set"])
+        with self.assertRaises(ValueError):
+            builder.check_required_config("CONFIG_TEST=y\n", [], ["CONFIG_OTHER=n"])
 
     def test_source_paths_are_not_shell_fragments_or_escapes(self):
         for path in ("../parent", "/absolute", "a/../../b", "a//b", "config;echo", "x\\y"):

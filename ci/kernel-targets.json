@@ -36,6 +36,14 @@
         }
       ],
       "keep_going_on_compile_error": true,
+      "disable_symbols": [
+        "KSM",
+        "SCSI_UFS_EXYNOS"
+      ],
+      "required_disabled_symbols": [
+        "# CONFIG_KSM is not set",
+        "# CONFIG_SCSI_UFS_EXYNOS is not set"
+      ],
       "source_dependencies": [
         {
           "name": "oh-common-modules",
