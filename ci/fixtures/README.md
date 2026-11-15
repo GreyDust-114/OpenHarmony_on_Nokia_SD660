@@ -1,4 +1,4 @@
-# Offline source fixture
+# Offline source fixtures
 
 `oh66-kvm-coalesced_mmio.c` is an unmodified GPL-2.0 source snapshot, retaining
 its original license/copyright notices. It contains no device/host evidence.
@@ -20,3 +20,24 @@ to the bus path, so adding a public declaration/stub back would be wrong.
 
 This is a source/patch regression, not a compiler or runtime test. Actual
 compilation is performed only by the disposable GitHub Actions runner.
+
+## XPM pageflag configuration regression
+
+- `oh66-mmflags.h` is the unmodified GPL-2.0 header from the same pinned
+  kernel commit, `include/trace/events/mmflags.h`.
+  SHA256: `b5e688ad525a978a90136bc94b513d3701b3097268c22f5ec0be31fab081eb41`.
+- `oh66-xpm-pageflags-enum.h` is the conditional enum excerpt from
+  `include/linux/page-flags.h:146-149` at that commit, with source attribution.
+
+`test_mmflags.py` applies the declared two-line guard patch in a temporary
+Git tree. Its source-contract test compares actual enum/table guards for all
+four combinations of `CONFIG_SECURITY_XPM` and `CONFIG_ARCH_USES_PG_ARCH_X`.
+The original source fails both mixed combinations; the fixed source preserves
+XPM's own condition independently of architecture flags.
+
+Linux CI additionally compiles a minimized C harness containing the real enum
+excerpt and macro definitions/calls for all four combinations, using native
+GCC, `-Werror` and `-fsyntax-only`. A negative control must reproduce the
+original undeclared `PG_xpm_readonly` error. On hosts without GCC this compiler
+test is explicitly skipped; no compiler is installed locally. This matrix is
+not a full kernel or runtime test.

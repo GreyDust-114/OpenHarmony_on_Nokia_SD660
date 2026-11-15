@@ -46,11 +46,13 @@ git credential-manager github login --username GreyDust-114 --device
 2. 把以下文件保留目录结构放到仓库的**默认分支**：
 
    ```text
+   .gitattributes
    .github/workflows/kernel-build.yml
-   ci/build_kernel.py
-   ci/kernel-targets.json
-   ci/test_kernel_ci.py
+   ci/                     # 包含构建脚本、目标定义、两个test_*.py及公开源码fixtures/
    docs/research/drafts/ft8716-oh66-review.patch
+   docs/research/drafts/oh66-common-headers-review.patch
+   docs/research/drafts/oh66-kvm-coalesced-sync-review.patch
+   docs/research/drafts/oh66-xpm-mmflags-guard-review.patch
    ```
 
    可同时上传本页、README与`.gitignore`。CI不需要手机采集证据、完整研究快照、短信数据或vendor二进制。
@@ -65,7 +67,7 @@ git credential-manager github login --username GreyDust-114 --device
 
 新增`.gitignore`默认排除：`.obsidian`、root实机证据、设备config/摘要、生成的主机状态及本机构建目录。**`.gitignore`不能撤回已经提交的文件，也不能阻止网页手动上传忽略文件。** 不要无检查地上传整个项目文件夹，尤其不要上传IMEI、短信、完整分区备份或账号密钥。
 
-研究脚本中的离线测试有些需要本机保存的私有证据，因此云CI只运行`ci/test_kernel_ci.py`，不会尝试采集手机或上传这些证据。
+研究脚本中的离线测试有些需要本机保存的私有证据，因此云CI只发现并运行`ci/test_*.py`，仅使用合成输入及`ci/fixtures/`中的公开源码样例，不会尝试采集手机或上传私有证据。XPM四组合的真实C编译回归在Linux CI用HOST GCC执行；本机没有GCC时显式跳过，不会偷偷安装工具。
 
 ## 工作流具体行为
 
@@ -80,6 +82,8 @@ git credential-manager github login --username GreyDust-114 --device
 - OH6.6目标先准备外部Kconfig源码及固定公共头文件支持补丁，再检查并应用FT8716草案。首次因缺少`fs/proc/memory_security/Kconfig`停止；修复后defconfig/olddefconfig已通过，随后在编译准备阶段发现`linux/xpm_types.h`缺失，尚未到触摸驱动本体。
 - `oh66-common-headers-review.patch`原样来自`kernel_linux_patches`固定提交`8183895af567d5f739af4fa7cf5856e608c4e046`的`linux-6.6/qemu-arm-linux_patch/oh_headers.patch`，SHA256写入目标定义并在执行前验证。它添加6个真实公共头文件、修正3处PAGEFLAG_FALSE宏参数；不包含QEMU启动地址、设备树、ARM boot Makefile或watchdog改动。已经对固定6.6的page-flags.h快照检查应用，后续以云编译验证兼容性。这是独立研究性支持补丁，不是宣称已复现完整OH manifest构建。
 - 后续#4已通过FT8716对象编译，完整Image失败于KVM调用旧的`kvm_iodevice_destructor`。已将该调用处按Linux v6.6.101（`3a8ababb8b6a0ced2be230b60b6e3ddbd8d67014`）同步为`oh66-kvm-coalesced-sync-review.patch`；匹配头文件和总线销毁函数原本已与该版本一致，因此不能重新加声明/空实现或重复销毁。保留KVM和编译错误检查，回归在真实固定源码上应用补丁并核对完整文件SHA256，修复后与同版本stable文件一致。完整镜像仍需新任务验证。
+- #5的真实日志已确认KVM coalesced MMIO对象通过，随后在`mm/debug.c`发现XPM调试表误用架构条件。`oh66-xpm-mmflags-guard-review.patch`只把两个表项改用已有`IF_HAVE_PG_XPM_INTEGRITY`宏，与枚举的`CONFIG_SECURITY_XPM`条件一致；不更改任何功能开关。回归覆盖XPM/架构标志四组合。
+- OH6.6完整镜像步骤现在使用`make -k`收集其他独立编译错误，减少一错一轮的排查；它仍以非零退出码失败，不是`-i`或忽略错误。配置和FT8716对象步骤仍快速失败，旧4.4目标不变。
 - 没有HDF外部仓库/完整OH产品构建，不能把单内核编译说成完整OH集成。
 
 核心脚本默认只打印计划；需要`--execute`、Linux及Actions环境才运行构建。不会删除已有source/out目录覆盖重试，不会更改启动分区。

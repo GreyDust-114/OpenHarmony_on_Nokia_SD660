@@ -1,0 +1,14 @@
+diff --git a/include/trace/events/mmflags.h b/include/trace/events/mmflags.h
+--- a/include/trace/events/mmflags.h
++++ b/include/trace/events/mmflags.h
+@@ -139,8 +139,8 @@
+ IF_HAVE_PG_IDLE(young)							\
+ IF_HAVE_PG_ARCH_X(arch_2)						\
+ IF_HAVE_PG_ARCH_X(arch_3)						\
+-IF_HAVE_PG_ARCH_X(xpm_readonly)						\
+-IF_HAVE_PG_ARCH_X(xpm_writetainted)
++IF_HAVE_PG_XPM_INTEGRITY(xpm_readonly)						\
++IF_HAVE_PG_XPM_INTEGRITY(xpm_writetainted)
+ 
+ #define show_page_flags(flags)						\
+ 	(flags) ? __print_flags(flags, "|",				\

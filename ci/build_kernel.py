@@ -63,6 +63,8 @@ def load_targets() -> dict:
                 raise ValueError("Invalid Kconfig symbol")
         if target["toolchain"] not in ("legacy-clang14-gnu-binutils", "llvm14"):
             raise ValueError("Unknown toolchain")
+        if not isinstance(target.get("keep_going_on_compile_error", False), bool):
+            raise ValueError("keep_going_on_compile_error must be a boolean")
         seen_dependencies = set()
         for dependency in target.get("source_dependencies", []):
             name = dependency["name"]
@@ -104,7 +106,8 @@ def build_plan(target: dict, output: str, jobs: int) -> list[dict]:
     steps.append({"label": "resolve-config", "command": base + ["olddefconfig"]})
     if target.get("object_target"):
         steps.append({"label": "compile-ft8716-object", "command": base + [f"-j{jobs}", target["object_target"]]})
-    steps.append({"label": "compile-kernel", "command": base + [f"-j{jobs}", target["image_target"]]})
+    compile_flags = (["-k"] if target.get("keep_going_on_compile_error", False) else []) + [f"-j{jobs}"]
+    steps.append({"label": "compile-kernel", "command": base + compile_flags + [target["image_target"]]})
     return steps
 
 

@@ -28,8 +28,14 @@
           "path": "docs/research/drafts/oh66-kvm-coalesced-sync-review.patch",
           "origin": "https://github.com/gregkh/linux/blob/3a8ababb8b6a0ced2be230b60b6e3ddbd8d67014/virt/kvm/coalesced_mmio.c",
           "sha256": "35aaa178a6dbf197f70bc88d44fd9e96fa39beab9b7251ca1960b7f9840209cc"
+        },
+        {
+          "path": "docs/research/drafts/oh66-xpm-mmflags-guard-review.patch",
+          "origin": "https://github.com/eclipse-oniro-mirrors/kernel_linux_6.6/blob/31c8f21f4c95d59c8e730038b868109e9244a936/include/trace/events/mmflags.h",
+          "sha256": "18cf10ee6c0e12d567bcd4f63cc439bce12dd77dd561531d969f430e11e758b3"
         }
       ],
+      "keep_going_on_compile_error": true,
       "source_dependencies": [
         {
           "name": "oh-common-modules",

@@ -39,9 +39,10 @@ class BuildPlanTests(unittest.TestCase):
 
     def test_oh66_missing_header_support_is_pinned(self):
         patches = self.targets["oh66-ft8716"].get("support_patches", [])
-        self.assertEqual(len(patches), 2, "OH6.6 needs common headers and the stable KVM caller synchronization")
-        patch = builder.PROJECT / patches[0]["path"]
-        self.assertEqual(builder.sha256(patch), patches[0]["sha256"])
+        headers = [p for p in patches if p["path"].endswith("oh66-common-headers-review.patch")]
+        self.assertEqual(len(headers), 1, "The common-header support input must remain unique")
+        patch = builder.PROJECT / headers[0]["path"]
+        self.assertEqual(builder.sha256(patch), headers[0]["sha256"])
         text = patch.read_text(encoding="utf-8")
         self.assertIn("b/include/linux/xpm_types.h", text)
         self.assertIn("+struct xpm_region {", text)
@@ -116,6 +117,16 @@ class BuildPlanTests(unittest.TestCase):
         self.assertIn("CC=clang-14", steps[-1]["command"])
         self.assertIn("CROSS_COMPILE_ARM32=arm-linux-gnueabi-", steps[-1]["command"])
         self.assertEqual(steps[-1]["command"][-1], "Image.gz-dtb")
+
+    def test_modern_diagnostic_build_keeps_errors_fatal_but_collects_independent_failures(self):
+        modern = builder.build_plan(self.targets["oh66-ft8716"], "OUT", 2)
+        self.assertIn("-k", modern[-1]["command"])
+        self.assertEqual(modern[-1]["label"], "compile-kernel")
+        self.assertFalse(any("-k" in s["command"] for s in modern[:-1]))
+        self.assertNotIn("-i", modern[-1]["command"])
+        self.assertNotIn("--ignore-errors", modern[-1]["command"])
+        legacy = builder.build_plan(self.targets["nokia44-baseline"], "OUT", 2)
+        self.assertFalse(any("-k" in s["command"] for s in legacy))
 
     def test_modern_plan_compiles_touch_object_before_image(self):
         steps = builder.build_plan(self.targets["oh66-ft8716"], "OUT", 2)
