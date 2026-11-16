@@ -98,6 +98,11 @@
         "origin": "B2N FT8716U DRM panel port to OH6.6 DSI/DRM APIs; commands based on sdm660-mainline panel reference",
         "sha256": "104b4bda0c58f1b562d9c5784479609b50f4633563bbf75e345d976b65a46b47"
       },
+      "hardware_patch": {
+        "path": "docs/research/drafts/oh66-b2n-panel-hardware-review.patch",
+        "origin": "B2N vendor FT8716U packet streams, timing and GPIO53 reset; bias/backlight remains separate",
+        "sha256": "244b387a59ce1150b76cc951e262e9f2fd7087ec1f5972660cc702ed84c10cf5"
+      },
       "dtb_targets": ["qcom/sdm660-nokia-b2n.dtb", "qcom/sdm660-xiaomi-lavender.dtb"],
       "dtb_profiles": {"qcom/sdm660-nokia-b2n.dtb": "b2n-touch"},
       "keep_going_on_compile_error": true,

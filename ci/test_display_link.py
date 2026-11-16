@@ -21,7 +21,7 @@ class DisplayLinkTests(unittest.TestCase):
             for name in ("Kconfig", "Makefile"):
                 install("drivers/gpu/drm/panel/" + name, (builder.PROJECT / ("ci/fixtures/oh66-panel-" + name)).read_bytes())
             subprocess.run(["git", "init", "-q", str(root)], check=True, capture_output=True)
-            for field in ("board_patch", "display_patch"):
+            for field in ("board_patch", "display_patch", "hardware_patch"):
                 spec = target[field]
                 data = (builder.PROJECT / spec["path"]).read_bytes().replace(b"\r\n", b"\n")
                 self.assertEqual(hashlib.sha256(data).hexdigest(), spec["sha256"])
@@ -32,6 +32,11 @@ class DisplayLinkTests(unittest.TestCase):
             panel = root / "drivers/gpu/drm/panel"
             self.assertIn("config DRM_PANEL_B2N_FT8716U", (panel / "Kconfig").read_text())
             self.assertIn("obj-$(CONFIG_DRM_PANEL_B2N_FT8716U) += panel-ft8716u.o", (panel / "Makefile").read_text())
+            dts = (root / "arch/arm64/boot/dts/qcom/sdm660-nokia-b2n.dts").read_text()
+            self.assertIn('compatible = "nokia,b2n-ft8716u";', dts)
+            self.assertIn('reset-gpios = <&tlmm 53 GPIO_ACTIVE_LOW>;', dts)
+            self.assertNotIn('reset-gpios = <&tlmm 62 GPIO_ACTIVE_LOW>;', dts)
+            self.assertEqual((panel / "panel-b2n-ft8716u-commands.h").read_text(), (builder.PROJECT / "docs/research/drafts/oh66-b2n-ft8716u-commands.h").read_text())
             self.assertEqual((panel / "panel-ft8716u.c").read_text(), (builder.PROJECT / "docs/research/drafts/oh66-b2n-panel-ft8716u.c").read_text())
 
     def test_final_map_required_not_merely_object_or_config(self):

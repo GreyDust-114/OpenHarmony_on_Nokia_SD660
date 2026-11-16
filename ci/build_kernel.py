@@ -60,7 +60,7 @@ def load_targets() -> dict:
         for dtb, profile in target.get("dtb_profiles", {}).items():
             if dtb not in target.get("dtb_targets", []) or profile != "b2n-touch":
                 raise ValueError("Invalid compiled-DTB contract")
-        all_patches = target.get("support_patches", []) + ([target["board_patch"]] if target.get("board_patch") else []) + ([target["display_patch"]] if target.get("display_patch") else [])
+        all_patches = target.get("support_patches", []) + ([target["board_patch"]] if target.get("board_patch") else []) + ([target["display_patch"]] if target.get("display_patch") else []) + ([target["hardware_patch"]] if target.get("hardware_patch") else [])
         for patch in all_patches:
             relative_path(patch["path"])
             if not re.fullmatch(r"[a-f0-9]{64}", patch["sha256"]):
@@ -299,7 +299,7 @@ def execute(name: str, target: dict, work: Path, jobs: int) -> None:
         if applied:
             (artifacts / "source-dependencies.json").write_text(json.dumps({"inputs": target["source_dependencies"],
                 "materialized_paths": applied}, indent=2) + "\n", encoding="utf-8")
-        patches = target.get("support_patches", []) + ([target["board_patch"]] if target.get("board_patch") else []) + ([target["display_patch"]] if target.get("display_patch") else [])
+        patches = target.get("support_patches", []) + ([target["board_patch"]] if target.get("board_patch") else []) + ([target["display_patch"]] if target.get("display_patch") else []) + ([target["hardware_patch"]] if target.get("hardware_patch") else [])
         for index, spec in enumerate(patches, 1):
             patch = PROJECT / spec["path"]
             digest = sha256(patch)

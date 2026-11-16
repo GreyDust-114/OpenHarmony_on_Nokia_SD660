@@ -42,6 +42,15 @@ original undeclared `PG_xpm_readonly` error. On hosts without GCC this compiler
 test is explicitly skipped; no compiler is installed locally. This matrix is
 not a full kernel or runtime test.
 
+## B2N vendor panel stream fixture
+
+`nokia-b2n-ft8716u-panel.dtsi` is the public Nokia FT8716U panel source
+snapshot previously collected under `evidence/hardware-audit/nokia-ft8716u-panel.dtsi`.
+Its original Linux Foundation GPL-2.0 notice is retained. This is vendor source,
+not a phone dump. `test_panel_hardware.py` compares every command byte and runs
+the actual transport function against a host mock on Linux CI. The source has
+120 on/2 off packets including 65 two-byte DCS long writes.
+
 ## B2N panel link fixtures
 
 `oh66-panel-Kconfig` and `oh66-panel-Makefile` are unchanged source snapshots
