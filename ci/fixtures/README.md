@@ -61,6 +61,16 @@ temporary Git tree, checks registration and exact panel source, and tests the
 final System.map contract with missing/undefined/prefix-only negative cases.
 No phone evidence is included.
 
+## B2N panel power fixtures
+
+`oh66-regulator-Kconfig` and `oh66-regulator-Makefile` are unchanged source
+snapshots of `drivers/regulator/{Kconfig,Makefile}` at the pinned kernel commit
+`31c8f21f4c95d59c8e730038b868109e9244a936`, retaining original SPDX notices.
+`test_display_power.py` stacks the four B2N patches on these fixtures plus the
+panel and qcom DTS makefiles, then asserts the PM660 L11 panel rail, the
+NT50356 i2c7 node and the GPIO ordering, and that bias register programming is
+opt-in only.
+
 ## B2N DTB build fixtures
 
 `oh66-qcom-Makefile` is the unchanged qcom DTS Makefile (canonical LF) at

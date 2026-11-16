@@ -103,8 +103,13 @@
         "origin": "B2N vendor FT8716U packet streams, timing and GPIO53 reset; bias/backlight remains separate",
         "sha256": "244b387a59ce1150b76cc951e262e9f2fd7087ec1f5972660cc702ed84c10cf5"
       },
+      "power_patch": {
+        "path": "docs/research/drafts/oh66-b2n-display-power-review.patch",
+        "origin": "PM660 L11 panel I/O rail, NT50356 bias sequencing driver and i2c7 board wiring",
+        "sha256": "e247425580edc1c4d3d68b45ed444c8c0b7d53991f933c18f1448d69954dbc76"
+      },
       "dtb_targets": ["qcom/sdm660-nokia-b2n.dtb", "qcom/sdm660-xiaomi-lavender.dtb"],
-      "dtb_profiles": {"qcom/sdm660-nokia-b2n.dtb": "b2n-touch"},
+      "dtb_profiles": {"qcom/sdm660-nokia-b2n.dtb": ["b2n-touch", "b2n-display"]},
       "keep_going_on_compile_error": true,
       "disable_symbols": ["KSM", "SCSI_UFS_EXYNOS", "DRM_MSM_DPU"],
       "required_disabled_symbols": ["# CONFIG_KSM is not set", "# CONFIG_SCSI_UFS_EXYNOS is not set", "# CONFIG_DRM_MSM_DPU is not set"],
@@ -126,12 +131,13 @@
       "fragments": [],
       "toolchain": "llvm14",
       "image_target": "Image.gz",
-      "enable_symbols": ["ARCH_QCOM", "I2C_QUP", "PINCTRL_SDM660", "INPUT_EVDEV", "INPUT_TOUCHSCREEN", "TOUCHSCREEN_EDT_FT5X06", "DRM", "QCOM_OCMEM", "QCOM_LLCC", "BACKLIGHT_CLASS_DEVICE", "DRM_MSM", "DRM_MSM_MDP5", "DRM_MSM_DSI", "DRM_MSM_DSI_14NM_PHY", "DRM_PANEL_B2N_FT8716U"],
-      "required_symbols": ["CONFIG_ARCH_QCOM=y", "CONFIG_I2C_QUP=y", "CONFIG_PINCTRL_SDM660=y", "CONFIG_INPUT_EVDEV=y", "CONFIG_TOUCHSCREEN_EDT_FT5X06=y", "CONFIG_DRM_MSM=y", "CONFIG_DRM_MSM_MDP5=y", "CONFIG_DRM_MSM_DSI=y", "CONFIG_DRM_MSM_DSI_14NM_PHY=y", "CONFIG_BACKLIGHT_CLASS_DEVICE=y", "CONFIG_DRM_PANEL_B2N_FT8716U=y"],
-      "required_link_symbols": ["mdss_dsi_ft8716u_driver", "msm_platform_driver", "dsi_driver"],
+      "enable_symbols": ["ARCH_QCOM", "I2C_QUP", "PINCTRL_SDM660", "INPUT_EVDEV", "INPUT_TOUCHSCREEN", "TOUCHSCREEN_EDT_FT5X06", "DRM", "QCOM_OCMEM", "QCOM_LLCC", "BACKLIGHT_CLASS_DEVICE", "REGULATOR", "REGMAP_I2C", "DRM_MSM", "DRM_MSM_MDP5", "DRM_MSM_DSI", "DRM_MSM_DSI_14NM_PHY", "REGULATOR_NT50356", "DRM_PANEL_B2N_FT8716U"],
+      "required_symbols": ["CONFIG_ARCH_QCOM=y", "CONFIG_I2C_QUP=y", "CONFIG_PINCTRL_SDM660=y", "CONFIG_INPUT_EVDEV=y", "CONFIG_TOUCHSCREEN_EDT_FT5X06=y", "CONFIG_DRM_MSM=y", "CONFIG_DRM_MSM_MDP5=y", "CONFIG_DRM_MSM_DSI=y", "CONFIG_DRM_MSM_DSI_14NM_PHY=y", "CONFIG_BACKLIGHT_CLASS_DEVICE=y", "CONFIG_REGULATOR=y", "CONFIG_REGULATOR_NT50356=y", "CONFIG_DRM_PANEL_B2N_FT8716U=y"],
+      "required_link_symbols": ["mdss_dsi_ft8716u_driver", "msm_platform_driver", "dsi_driver", "nt50356_driver"],
       "patch": "docs/research/drafts/ft8716-oh66-review.patch",
       "object_target": "drivers/input/touchscreen/edt-ft5x06.o",
-      "panel_object_target": "drivers/gpu/drm/panel/panel-ft8716u.o"
+      "panel_object_target": "drivers/gpu/drm/panel/panel-ft8716u.o",
+      "bias_object_target": "drivers/regulator/nt50356.o"
     }
   }
 }

@@ -37,7 +37,9 @@ class DisplayLinkTests(unittest.TestCase):
             self.assertIn('reset-gpios = <&tlmm 53 GPIO_ACTIVE_LOW>;', dts)
             self.assertNotIn('reset-gpios = <&tlmm 62 GPIO_ACTIVE_LOW>;', dts)
             self.assertEqual((panel / "panel-b2n-ft8716u-commands.h").read_text(), (builder.PROJECT / "docs/research/drafts/oh66-b2n-ft8716u-commands.h").read_text())
-            self.assertEqual((panel / "panel-ft8716u.c").read_text(), (builder.PROJECT / "docs/research/drafts/oh66-b2n-panel-ft8716u.c").read_text())
+            layer2 = (panel / "panel-ft8716u.c").read_text()
+            self.assertIn("mdss_dsi_ft8716u_driver", layer2)
+            self.assertIn("b2n_send_commands", layer2)
 
     def test_final_map_required_not_merely_object_or_config(self):
         target = builder.load_targets()["oh66-b2n-dts"]

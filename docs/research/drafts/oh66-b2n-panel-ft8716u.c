@@ -6,6 +6,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
+#include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 
 #include <drm/drm_mipi_dsi.h>
@@ -18,6 +19,7 @@ struct mdss_dsi_ft8716u {
 	struct drm_panel panel;
 	struct mipi_dsi_device *dsi;
 	struct gpio_desc *reset_gpio;
+	struct regulator *vddi0;
 };
 
 static inline struct mdss_dsi_ft8716u *to_mdss_dsi_ft8716u(struct drm_panel *panel)
@@ -87,12 +89,29 @@ static void mdss_dsi_ft8716u_reset(struct mdss_dsi_ft8716u *ctx)
 	usleep_range(10000, 11000);
 }
 
+static int mdss_dsi_ft8716u_supply_on(struct mdss_dsi_ft8716u *ctx)
+{
+	if (!ctx->vddi0)
+		return 0;
+	return regulator_enable(ctx->vddi0);
+}
+
+static void mdss_dsi_ft8716u_supply_off(struct mdss_dsi_ft8716u *ctx)
+{
+	if (ctx->vddi0)
+		regulator_disable(ctx->vddi0);
+}
+
 static int mdss_dsi_ft8716u_prepare(struct drm_panel *panel)
 {
 	struct mdss_dsi_ft8716u *ctx = to_mdss_dsi_ft8716u(panel);
 	int ret;
 
-	/* Bias and I/O supply integration is a separate board-power patch. */
+	/* Stock 415I: panel I/O is PM660 L11 at 1.8V, 32mA enable load. */
+	ret = mdss_dsi_ft8716u_supply_on(ctx);
+	if (ret)
+		return ret;
+
 	mdss_dsi_ft8716u_reset(ctx);
 	/* Vendor qcom,mdss-dsi-init-delay-us = <5>, after reset. */
 	usleep_range(5, 10);
@@ -101,6 +120,7 @@ static int mdss_dsi_ft8716u_prepare(struct drm_panel *panel)
 	if (ret < 0) {
 		dev_err(&ctx->dsi->dev, "B2N panel initialization failed: %d\n", ret);
 		gpiod_set_value_cansleep(ctx->reset_gpio, 1);
+		mdss_dsi_ft8716u_supply_off(ctx);
 	}
 	return ret;
 }
@@ -116,6 +136,7 @@ static int mdss_dsi_ft8716u_unprepare(struct drm_panel *panel)
 	if (ret < 0)
 		dev_err(&ctx->dsi->dev, "B2N panel shutdown failed: %d\n", ret);
 	gpiod_set_value_cansleep(ctx->reset_gpio, 1);
+	mdss_dsi_ft8716u_supply_off(ctx);
 	return ret;
 }
 
@@ -171,6 +192,13 @@ static int mdss_dsi_ft8716u_probe(struct mipi_dsi_device *dsi)
 	ctx->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(ctx->reset_gpio))
 		return dev_err_probe(dev, PTR_ERR(ctx->reset_gpio), "Failed to get reset GPIO\n");
+	ctx->vddi0 = devm_regulator_get_optional(dev, "vddi0");
+	if (IS_ERR(ctx->vddi0)) {
+		if (PTR_ERR(ctx->vddi0) != -ENODEV)
+			return dev_err_probe(dev, PTR_ERR(ctx->vddi0), "Failed to get vddi0\n");
+		dev_warn(dev, "no vddi0 supply; I/O rail must be enabled by the board\n");
+		ctx->vddi0 = NULL;
+	}
 	ctx->dsi = dsi;
 	mipi_dsi_set_drvdata(dsi, ctx);
 	dsi->lanes = 4;
