@@ -75,6 +75,8 @@ FATAL ERROR: Unable to parse input tree
 
 这是本地 DTS 语法/布局复现，不是把内核编译搬回本机；完整内核编译仍只在一次性 runner 上执行。
 
+修复后[任务 #17](https://github.com/GreyDust-114/OpenHarmony_on_Nokia_SD660/actions/runs/43833334992)已成功：B2N DTB 的 `b2n-display` 契约、`nt50356_driver` 链接和 panel/bias 对象编译全部通过，Image.gz 有效。产物审查见[供电构建审查](oh66-b2n-power-build-review.md)。
+
 ## 仍未做的
 
 - 偏压寄存器编程的台架验证（默认关闭）。
