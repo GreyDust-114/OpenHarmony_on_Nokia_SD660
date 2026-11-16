@@ -2,7 +2,7 @@ diff --git a/arch/arm64/boot/dts/qcom/sdm660-nokia-b2n.dts b/arch/arm64/boot/dts
 new file mode 100644
 --- /dev/null
 +++ b/arch/arm64/boot/dts/qcom/sdm660-nokia-b2n.dts
-@@ -0,0 +1,64 @@
+@@ -0,0 +1,92 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +/dts-v1/;
 +
@@ -22,13 +22,41 @@ new file mode 100644
 +	compatible = "nokia,b2n", "qcom,sdm660";
 +	chassis-type = "handset";
 +
++	/*
++	 * Bootloader DT selection and Nokia board identity, copied from the
++	 * stock 00WW_4_15I DTB root properties.
++	 */
++	qcom,msm-id = <317 0>;
++	qcom,board-id = <8 0>;
++	qcom,pmic-id = <0x1001b 0x101011a 0x0 0x0 0x1001b 0x201011a 0x0 0x0>;
++	fih,hw-id = <7 4 2>;
++
 +	aliases { serial0 = &blsp1_uart2; };
 +
 +	chosen { stdout-path = "serial0:115200n8"; };
++
++	/*
++	 * Nokia-specific reserved region from the stock DTB (Android pstore).
++	 * Reused for ramoops so a panic log can survive one reboot attempt.
++	 */
++	reserved-memory {
++		ramoops@acb00000 {
++			compatible = "ramoops";
++			reg = <0x0 0xacb00000 0x0 0x200000>;
++			record-size = <0x40000>;
++			console-size = <0x80000>;
++			pmsg-size = <0x80000>;
++		};
++	};
 +};
 +
 +&adreno_gpu { status = "disabled"; };
 +&blsp1_uart2 { status = "okay"; };
++
++/* K1 bring-up: USB peripheral gadget for a live serial console. */
++&usb3 { status = "okay"; };
++&usb3_dwc3 { dr_mode = "peripheral"; };
++&qusb2phy0 { status = "okay"; };
 +
 +/* B2N evidence: I2C4/0x38, IRQ GPIO67, reset GPIO66, 1080x2160. */
 +&blsp_i2c4 {

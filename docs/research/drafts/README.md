@@ -58,6 +58,13 @@ python -B -m unittest discover -s docs/research/scripts -p 'test*.py' -v
 
 OH6.6已包含`sdm660-xiaomi-lavender.dts`并在qcom Makefile注册。本轮沿用该版本公共include，仅新增B2N板级文件与Makefile条目；原有两个构建目标定义保持一致。
 
+后续K1 bring-up轮在该草案中补充（只影响板级DTS，不改显示/触摸/供电语义）：
+
+- 根节点`qcom,msm-id = <317 0>`、`qcom,board-id = <8 0>`、`qcom,pmic-id`与`fih,hw-id = <7 4 2>`，取自原厂415I DTB根属性，供bootloader选择本DTB；
+- 复用原厂保留内存中的`pstore_region@ACB00000`（2MiB）作为`ramoops`，用于一次重启内的日志保留；
+- 打开USB3 DWC3与QUSB2 PHY并把`dr_mode`设为`peripheral`，给K1提供USB ACM串口日志通道；
+- memory节点保持与主线`sdm630.dtsi`相同的bootloader回填占位，不写死内存大小。
+
 ## OH6.6公共头文件准备
 
 `oh66-common-headers-review.patch`原样保存自[固定的上游镜像补丁](https://github.com/eclipse-oniro-mirrors/kernel_linux_patches/blob/8183895af567d5f739af4fa7cf5856e608c4e046/linux-6.6/qemu-arm-linux_patch/oh_headers.patch)，SHA256为`9ecdd3593580a7cffb04595f23ba3df9fad3ced2699a87c32d9c13f6d8091b8d`。

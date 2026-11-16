@@ -21,7 +21,8 @@ class BuildPlanTests(unittest.TestCase):
         self.targets = builder.load_targets()
 
     def test_sources_are_pinned_and_allow_listed(self):
-        self.assertEqual(set(self.targets), {"nokia44-baseline", "oh66-ft8716", "oh66-b2n-dts"})
+        self.assertEqual(set(self.targets), {"nokia44-baseline", "oh66-ft8716",
+                                             "oh66-b2n-dts", "oh66-b2n-boot"})
         for target in self.targets.values():
             self.assertIn(target["repository"], builder.ALLOWED_REPOSITORIES)
             self.assertRegex(target["commit"], r"^[a-f0-9]{40}$")

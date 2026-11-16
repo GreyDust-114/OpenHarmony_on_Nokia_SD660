@@ -1,7 +1,7 @@
 diff --git a/arch/arm64/boot/dts/qcom/sdm660-nokia-b2n.dts b/arch/arm64/boot/dts/qcom/sdm660-nokia-b2n.dts
 --- a/arch/arm64/boot/dts/qcom/sdm660-nokia-b2n.dts
 +++ b/arch/arm64/boot/dts/qcom/sdm660-nokia-b2n.dts
-@@ -20,6 +20,15 @@
+@@ -29,5 +29,14 @@
  	aliases { serial0 = &blsp1_uart2; };
  
  	chosen { stdout-path = "serial0:115200n8"; };
@@ -14,9 +14,8 @@ diff --git a/arch/arm64/boot/dts/qcom/sdm660-nokia-b2n.dts b/arch/arm64/boot/dts
 +	regulator-always-on;
 +	regulator-boot-on;
 +};
- };
  
- &adreno_gpu { status = "disabled"; };
+ 	/*
 @@ -52,6 +61,8 @@
  		compatible = "nokia,b2n-ft8716u";
  		reg = <0>;

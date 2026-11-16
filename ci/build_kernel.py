@@ -1,8 +1,10 @@
 """Kernel-only GitHub Actions builder; the default invocation prints a plan.
 
-No ADB, flashing, boot-image packaging, releases, secrets, or full OH checkout.
-Execution requires --execute, Linux and the GitHub Actions environment. External
-kernel code is compiled only on the disposable runner at a fixed git commit.
+No ADB, flashing, releases, secrets, or full OH checkout. Execution requires
+--execute, Linux and the GitHub Actions environment. External kernel code is
+compiled only on the disposable runner at a fixed git commit. Targets that
+declare a boot_image also package a research Android boot v0 image for
+`fastboot boot` experiments; that image is never flashed.
 """
 from __future__ import annotations
 
@@ -75,6 +77,35 @@ def load_targets() -> dict:
         for symbol in target["enable_symbols"]:
             if not re.fullmatch(r"[A-Z0-9_]+", symbol):
                 raise ValueError("Invalid Kconfig symbol")
+        boot_image = target.get("boot_image")
+        if boot_image:
+            if not isinstance(boot_image, dict):
+                raise ValueError("boot_image must be a mapping")
+            for key in ("dtb", "output", "init_script", "busybox", "cmdline"):
+                if not isinstance(boot_image.get(key), str) or not boot_image[key]:
+                    raise ValueError("Invalid boot_image field: " + key)
+            if boot_image["dtb"] not in target.get("dtb_targets", []):
+                raise ValueError("boot_image DTB must be one of the dtb_targets")
+            relative_path(boot_image["init_script"])
+            relative_path(boot_image["output"])
+            if not re.fullmatch(r"[A-Za-z0-9_.-]+\.img", Path(boot_image["output"]).name):
+                raise ValueError("boot_image output must be a plain .img file name")
+            if not re.fullmatch(r"/[A-Za-z0-9_./-]+", boot_image["busybox"]):
+                raise ValueError("boot_image busybox path must be absolute")
+            if not target["image_target"].endswith(".gz"):
+                raise ValueError("boot_image requires a gzip kernel image target")
+            cmdline = boot_image["cmdline"]
+            if len(cmdline.encode("utf-8")) > 512 or "\n" in cmdline or "\0" in cmdline:
+                raise ValueError("boot_image cmdline must fit the boot v0 512-byte field")
+            for key in ("kernel_addr", "ramdisk_addr", "second_addr", "tags_addr",
+                        "max_bytes", "page_size"):
+                value = boot_image.get(key)
+                if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+                    raise ValueError("boot_image " + key + " must be a non-negative integer")
+            if boot_image["page_size"] not in (2048, 4096):
+                raise ValueError("boot_image page_size must be 2048 or 4096")
+            if not 1024 * 1024 <= boot_image["max_bytes"] <= 512 * 1024**2:
+                raise ValueError("boot_image max_bytes is out of range")
         if target["toolchain"] not in ("legacy-clang14-gnu-binutils", "llvm14"):
             raise ValueError("Unknown toolchain")
         if not isinstance(target.get("keep_going_on_compile_error", False), bool):
@@ -105,7 +136,7 @@ def make_command(target: dict, output: str) -> list[str]:
     return command
 
 
-def build_plan(target: dict, output: str, jobs: int) -> list[dict]:
+def build_plan(target: dict, output: str, jobs: int, artifacts: str | None = None) -> list[dict]:
     if jobs not in (1, 2, 3, 4):
         raise ValueError("Jobs must be between 1 and 4")
     base = make_command(target, output)
@@ -131,6 +162,24 @@ def build_plan(target: dict, output: str, jobs: int) -> list[dict]:
         steps.append({"label": "compile-nt50356-object", "command": base + [f"-j{jobs}", target["bias_object_target"]]})
     compile_flags = (["-k"] if target.get("keep_going_on_compile_error", False) else []) + [f"-j{jobs}"]
     steps.append({"label": "compile-kernel", "command": base + compile_flags + [target["image_target"]]})
+    if target.get("boot_image") and artifacts is not None:
+        spec = target["boot_image"]
+        steps.append({"label": "package-boot-image", "command": [
+            "python3", "-B", str(PROJECT / "ci/boot_image.py"),
+            "--image-gz", str(Path(output) / "arch/arm64/boot" / target["image_target"]),
+            "--dtb", str(Path(output) / "arch/arm64/boot/dts" / spec["dtb"]),
+            "--busybox", spec["busybox"],
+            "--init-script", str(PROJECT / spec["init_script"]),
+            "--cmdline", spec["cmdline"],
+            "--out", str(Path(artifacts) / spec["output"]),
+            "--report", str(Path(artifacts) / "boot-image-report.json"),
+            "--max-bytes", str(spec["max_bytes"]),
+            "--kernel-addr", str(spec["kernel_addr"]),
+            "--ramdisk-addr", str(spec["ramdisk_addr"]),
+            "--second-addr", str(spec["second_addr"]),
+            "--tags-addr", str(spec["tags_addr"]),
+            "--page-size", str(spec["page_size"]),
+        ]})
     return steps
 
 
@@ -232,7 +281,7 @@ def execute(name: str, target: dict, work: Path, jobs: int) -> None:
         "warning": "Research kernel/DTB outputs; no boot.img or complete phone system. No runtime testing. Do not flash."}
     (artifacts / "DO-NOT-FLASH.txt").write_text(provenance["warning"] + "\n", encoding="utf-8")
     shutil.copyfile(TARGETS_FILE, artifacts / "kernel-targets.json")
-    plan = build_plan(target, str(output), jobs)
+    plan = build_plan(target, str(output), jobs, str(artifacts))
     (artifacts / "build-plan.json").write_text(json.dumps(plan, indent=2) + "\n", encoding="utf-8")
     counter = 0
 
@@ -336,6 +385,19 @@ def execute(name: str, target: dict, work: Path, jobs: int) -> None:
             if step["label"] == "resolve-config":
                 check_required_config((output / ".config").read_text(), target["required_symbols"],
                                       target.get("required_disabled_symbols", []))
+        if target.get("boot_image"):
+            spec = target["boot_image"]
+            report_path = artifacts / "boot-image-report.json"
+            boot_file = artifacts / spec["output"]
+            if not report_path.is_file() or not boot_file.is_file():
+                raise RuntimeError("Boot image packaging did not produce its outputs")
+            report = json.loads(report_path.read_text(encoding="utf-8"))
+            if report.get("boot_image_sha256") != sha256(boot_file):
+                raise RuntimeError("Boot image report checksum mismatch")
+            provenance["boot_image"] = report
+            (boot_file.parent / "DO-NOT-FLASH.txt").write_text(
+                provenance["warning"] + " Use 'fastboot boot' in RAM only; never flash this file.\n",
+                encoding="utf-8")
         if target.get("required_link_symbols"):
             provenance["stage"] = "validate-linked-display"
             linked = check_link_symbols((output / "System.map").read_text(), target["required_link_symbols"])
@@ -383,7 +445,7 @@ def main() -> None:
     args = parser.parse_args()
     target = targets[args.target]
     if not args.execute:
-        print(json.dumps({"target": args.target, **target, "steps": build_plan(target, "OUT", args.jobs),
+        print(json.dumps({"target": args.target, **target, "steps": build_plan(target, "OUT", args.jobs, "ARTIFACTS"),
                           "execution": "not_requested"}, indent=2))
         return
     if not args.work_dir:

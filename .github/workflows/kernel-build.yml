@@ -12,6 +12,7 @@ on:
           - nokia44-baseline
           - oh66-ft8716
           - oh66-b2n-dts
+          - oh66-b2n-boot
       jobs:
         description: Compiler parallelism (start with 2)
         required: true
@@ -66,7 +67,7 @@ jobs:
             sudo apt-get install -y --no-install-recommends \
               build-essential bc bison flex libssl-dev libelf-dev libncurses-dev \
               clang-14 llvm-14 lld-14 gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi \
-              git python3 python3-yaml rsync xz-utils
+              git python3 python3-yaml rsync xz-utils busybox-static
           } 2>&1 | tee "$RUNNER_TEMP/b2n-kernel/artifacts/logs/runner-packages.log"
 
       - name: Validate CI code and print the build plan

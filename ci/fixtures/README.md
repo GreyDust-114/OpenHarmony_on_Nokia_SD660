@@ -71,6 +71,17 @@ panel and qcom DTS makefiles, then asserts the PM660 L11 panel rail, the
 NT50356 i2c7 node and the GPIO ordering, and that bias register programming is
 opt-in only.
 
+## B2N bring-up initramfs fixture
+
+`b2n-bringup-init.sh` is the K1 research init: it mounts only proc/sys/dev/
+configfs, brings up a USB ACM serial gadget so the host can read the boot log,
+mirrors dmesg to the framebuffer console (`/dev/tty0`) and to pstore, then
+reboots back to the normal Android boot after a timeout. It never mounts or
+writes an eMMC partition, never writes userdata/NV and contains no flashing
+command. `ci/boot_image.py` embeds it as `/init` together with the runner's
+static busybox into a gzip newc initramfs; the resulting boot v0 image is for
+`fastboot boot` in RAM only.
+
 ## B2N DTB build fixtures
 
 `oh66-qcom-Makefile` is the unchanged qcom DTS Makefile (canonical LF) at

@@ -11,8 +11,9 @@
 | `nokia44-baseline`（建议第一次选它） | Nokia社区4.4.302固定提交，SD660基础defconfig + Nokia/B2N配置片段 | 编译`Image.gz-dtb`，先证明B2N社区基线可构建；**尚无OH token/HDF/HAL适配** |
 | `oh66-ft8716` | OH6.6固定提交 + 已评审7行补丁，通用arm64 defconfig | 先编FT8716驱动对象，再编`Image.gz`；**没有B2N新DTS、面板驱动或完整OH系统** |
 | `oh66-b2n-dts` | 同一OH6.6基线 + B2N DTS增量，Lavender为同版本对照 | 先编译并核对两个DTB，再编FT8716对象及`Image.gz` |
+| `oh66-b2n-boot` | 在`oh66-b2n-dts`基础上增加启动所需配置（RPM/GLINK、时钟/GDSC、pstore/ramoops、USB gadget、fbcon）与最小initramfs | 编译`Image.gz`+B2N DTB，并打包**仅供`fastboot boot`的研究启动镜像**（Android boot v0）；不是可刷写镜像 |
 
-这些输出均为研究内核，**不是可以直接刷到手机的boot.img**。它们不包含已验证的bootloader/ramdisk/分区恢复方案。编译成功也不能证明本机启动、显示或短信可用。
+这些输出均为研究内核/研究启动镜像，**不是可以直接刷到手机的boot.img或刷机包**。启动镜像只用于内存临时启动，不含分区/恢复方案；编译成功也不能证明本机启动、显示或短信可用。
 
 ## 普通runner的资源限制
 
@@ -100,6 +101,16 @@ git credential-manager github login --username GreyDust-114 --device
 B2N检查项：`nokia,b2n`、PM660/PM660L、FT8716 compatible及其父I2C控制器`reg=0xc178000`、GPIO67下降沿、GPIO66低有效、1080×2160尺寸以及实际GPIO controller phandle。检查器按compatible与MMIO地址定位，兼容`/soc@0`与`/soc`层级。草案包含触摸pinctrl；显示/GPU状态保持disabled，下一阶段加入panel与NT50356供电。
 
 新增artifact：`research-device-trees/qcom/*.dtb`、`device-tree-sources/qcom/*.dts`、`device-tree-validation.json`。原始DTB/DTS在属性验收前保存，方便审查检查器自身的失败。这些是DTB编译和已知板级属性验收；schema专项校验随面板/供电binding继续加入。
+
+## B2N 研究启动镜像（K1 用）
+
+`oh66-b2n-boot`在同一个内核基础上多打包一个**仅供 `fastboot boot` 的内存启动镜像**。它是K1真机bring-up的输入，不是刷机包：
+
+- 格式：Android boot header v0、page size 4096，kernel 区为 `Image.gz` 后追加 B2N DTB，ramdisk 为 busybox 最小 initramfs；header 地址字段与真机 415I boot 一致（kernel 0x8000、ramdisk 0x1000000、second 0xF00000、tags 0x100）。
+- initramfs：`ci/fixtures/b2n-bringup-init.sh`，只挂载 proc/sys/dev/configfs；配置 USB ACM 串口把 dmesg 输出到主机，同时写 `/dev/tty0`（面板控制台）；不挂载/不写入任何 eMMC 分区；超时后 `reboot -f` 回到原 Android。
+- `busybox-static` 只在runner安装；本机测试用合成输入，不在本机编译内核。
+- artifact：`research-boot-not-for-flashing/boot-b2n-research.img`（含 `DO-NOT-FLASH.txt`）与 `boot-image-report.json`（大小、SHA256、cmdline、header字段、initramfs条目）。
+- 红线上限：镜像大小必须≤boot分区64MiB；任何写分区、挂userdata/NV或刷写操作都不在本目标范围内。
 
 ## 产物与失败日志
 
