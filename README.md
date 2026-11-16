@@ -15,7 +15,7 @@
 
 在仓库默认分支放入工作流后，到 **Actions → Research kernel build (no flashing) → Run workflow** 选择一个目标。建议先运行旧内核基线，并行度2。启动镜像只用于临时内存启动，不写任何分区；真机实验需遵守[移植总路线](docs/research/port-roadmap.md)中的授权与红线。
 
-首次Nokia 4.4云编译已成功，产物完整性、ARM64 Image及B2N板级DTB已核对；B2N DTB/显示/供电目标已在云CI完成编译、契约与链接验证（最近一次 [#17](https://github.com/GreyDust-114/OpenHarmony_on_Nokia_SD660/actions/runs/43833334992)）。**OH6.6目标仍只是编译级产物，真机启动/显示/触摸尚未验证。**产物不是刷机包；完整OH构建的空间仍需按实际runner另行规划。
+首次Nokia 4.4云编译已成功，产物完整性、ARM64 Image及B2N板级DTB已核对；B2N DTB/显示/供电目标已在云CI完成编译、契约与链接验证（[#17](https://github.com/GreyDust-114/OpenHarmony_on_Nokia_SD660/actions/runs/43833334992)），K1研究启动镜像已在[#18](https://github.com/GreyDust-114/OpenHarmony_on_Nokia_SD660/actions/runs/43852272454)成功打包（[启动镜像与K1准备](docs/research/b2n-boot-bringup.md)）。**OH6.6目标仍只是编译级产物，真机启动/显示/触摸尚未验证。**产物不是刷机包；完整OH构建的空间仍需按实际runner另行规划。
 
 无需上传实机证据、vendor库、分区备份或手机凭据。`.gitignore`默认保护本机采集记录；公开仓库前仍须人工检查。[最小上传文件清单与费用/空间说明](docs/cloud-build.md)。
 

@@ -30,6 +30,9 @@
   panel/bias 对象均实际编译。详见[供电构建审查](oh66-b2n-power-build-review.md)。
 - **固定内核树自带 SDM660 主线基础设施**：`sdm630.dtsi`/`sdm660.dtsi` 已含 SDHCI(eMMC)、USB3/dwc3、
   RPM/regulator 框架、MDSS/DSI/14nm PHY、Adreno A512、I2C/BLSP、TLMM 等节点，K1/K2 不需要从零写驱动。
+- **K1 所需的启动基础设施已就绪**：#18 成功产出研究启动镜像（boot v0 + `Image.gz` + B2N DTB +
+  最小 initramfs，15,200,256 bytes，header 与真机 415I boot 一致），并验证了串口/面板/pstore 两条日志
+  通道与"不写 eMMC、超时自动回 Android"的 init 脚本；详见[启动镜像与 K1 准备](b2n-boot-bringup.md)。
 - **真机可逆实验条件已具备**：已确认设备可用于不写分区的临时内存启动（结论级证据；设备状态、boot 镜像与分区数据仅保存在本地证据目录，不随仓库发布）。原厂 415I 设备树、面板命令、触摸与偏压参数已逐字节核对（本地证据）。
 - **OH 用户态有可直接对齐的 Linux 产品**：OH 7.0-Release 的 `qemu_arm64_linux_full` 用
   `kernel/linux/linux-6.6` + 用户态 Display/Composer VDI（DRM + GBM）+ Mesa + evdev/libinput，
@@ -96,10 +99,10 @@
 
 | 工作包 | 产出 | 验收 |
 |---|---|---|
-| P0-1 boot 打包器 | `ci/build_boot_image.py`：boot v0 header、`Image.gz`+B2N DTB、initramfs cpio、cmdline、结构自检 | 本地/CI 单测覆盖 header 字段、页对齐、尺寸边界；产物明确标注"研究件，不可刷" |
-| P0-2 内核启动补全 | B2N DTS 增加 `qcom,msm-id`/`qcom,board-id` 等 bootloader 选择属性、reserved-memory+ramoops、sdhci、dwc3+PHY、rpm/时钟、fbcon、pstore、gadget serial；新增 `oh66-b2n-boot` CI 目标 | 配置验收 + DTB 契约 + `Image.gz`；provenance 记录全部输入 |
-| P0-3 真机 K1 | `fastboot boot` 研究 boot 镜像，pstore/USB serial 取日志 | 完整 dmesg、eMMC 未写入、可随时重启回 Android |
-| P0-4 OH 基线锁定 | 把内核 pin 迁到 OH 7.0-Release 的 `kernel_linux_6.6`，重放 B2N 补丁，记录 commit SHA；CI 继续通过 | 补丁全部 apply、DTB 契约与 #17 等价 |
+| P0-1 boot 打包器 ✅ | `ci/build_boot_image.py`（boot v0 header、`Image.gz`+B2N DTB、initramfs cpio、cmdline、结构自检） | 已完成：#18 成功打包 15,200,256 bytes 的研究启动镜像，header/地址与真机 415I boot 一致，107 entries 产物 SHA256 校验通过 |
+| P0-2 内核启动补全 ✅ | B2N DTS 增加 bootloader 选择属性、ramoops、USB gadget；新增 `oh66-b2n-boot` CI 目标（RPM/GLINK、时钟/GDSC、pstore、fbcon 等配置） | 已完成：#18 配置 33 项验收通过、4 个驱动符号仍链接、编译 0 error/17 warning；详见[K1 准备](b2n-boot-bringup.md) |
+| P0-3 真机 K1 | 用研究启动镜像做 `fastboot boot`（RAM only），串口/面板/pstore 取日志 | 完整 dmesg 到 init、eMMC 未写入、可回 Android；**下一步执行** |
+| P0-4 OH 基线锁定 | 把内核 pin 迁到 OH 7.0-Release 的 `kernel_linux_6.6`，重放 B2N 补丁，记录 commit SHA；CI 继续通过 | 补丁全部 apply、DTB 契约与 #17/#18 等价 |
 | P0-5 构建资源 spike | `qemu_arm64_linux_full` 的 repo 清单、磁盘/内存/时间实测或估算；本机 WSL2 虚拟盘扩容与外置盘挂载方案 | 形成明确预算与操作方案；先不下载/构建 180GB |
 
 ### P1：K2 真机显示/触摸
@@ -119,13 +122,14 @@
 - Display VDI(MSM) 出图 + MMI/libinput 触摸；先 `kms_swrast` CPU 渲染，再 freedreno（Adreno 512）。
 - 验收：截屏/录屏 + 触摸事件日志；性能数字作为 U3。
 
-## 5. 立刻要做的 5 件事（按顺序）
+## 5. 当前行动清单
 
-1. **P0-1 boot 打包器**（纯软件，可离线测试）——没有它后面所有真机实验都做不了。
-2. **P0-2 内核启动补全 + 新 CI 目标**（P0-2 与 P0-1 可并行）。
-3. **P0-5 构建资源 spike**（不需要手机；方向已定为本机 WSL + 外置盘扩容，先做容量/方案实测）。
-4. **P0-4 OH 7.0 内核基线迁移**（决定用户态与内核版本对齐）。
-5. **P0-3 真机 K1**（已授权，见 §8；在 P0-1/P0-2 就绪后单独安排）。
+P0-1/P0-2 已完成（#18）。接下来按顺序：
+
+1. **P0-3 真机 K1**（已授权）：按[启动镜像与 K1 准备](b2n-boot-bringup.md)执行，收集串口/面板/pstore 日志。
+2. **P0-4 OH 7.0 内核基线迁移**（K1 通过后或并行进行）。
+3. **P0-5 WSL + 外置盘容量方案**（OH 用户态构建的前置条件）。
+4. K1 日志用于 K2（显示/触摸真机验证）的迭代输入。
 
 ## 6. 风险清单
 

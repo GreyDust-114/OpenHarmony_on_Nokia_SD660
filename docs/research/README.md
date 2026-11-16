@@ -8,8 +8,7 @@
 
 - **当前路线**：OH 7.0 Linux 标准系统 + B2N 6.6 内核 + 用户态 DRM VDI + evdev/Mesa（路线 B），
   Oniro hybris 为后备。目标拆成 K1/K2/U1/U2/U3 真机里程碑，详见[移植总路线](port-roadmap.md)。
-- **最新验证结果**：云 CI [#17](https://github.com/GreyDust-114/OpenHarmony_on_Nokia_SD660/actions/runs/43833334992) 成功（B2N DTB 契约、panel/bias 对象、显示/供电符号、有效 `Image.gz`），
-  仍是编译级证据；真机里程碑 K1 尚未开始。产物审查见[供电构建审查](oh66-b2n-power-build-review.md)。
+- **最新验证结果**：[#18](https://github.com/GreyDust-114/OpenHarmony_on_Nokia_SD660/actions/runs/43852272454) 成功产出 K1 研究启动镜像（boot v0 + 最小 initramfs，header 与真机 415I boot 一致，只供 `fastboot boot`）；内核/DTB 契约与 4 个驱动符号继续通过。真机里程碑 K1 尚未开始。前置产物审查见[供电构建审查](oh66-b2n-power-build-review.md)，启动镜像与上机步骤见[启动镜像与 K1 准备](b2n-boot-bringup.md)。
 - **建议阅读顺序**：[移植总路线](port-roadmap.md) → [云构建运行记录](oh66-cloud-run.md) → 最近一次 [构建审查](oh66-b2n-power-build-review.md) → [415I 硬件事实](b2n-415I-boot-extraction.md) → 参考材料。
 
 ## 路线与计划
@@ -27,6 +26,7 @@
 | [oh66-b2n-dts-build-review.md](oh66-b2n-dts-build-review.md) | B2N DTS/DTB 二进制契约阶段审查 |
 | [oh66-b2n-display-build-review.md](oh66-b2n-display-build-review.md) | #14：MSM/MDP5/DSI/panel 内建链接审查 |
 | [oh66-b2n-power-build-review.md](oh66-b2n-power-build-review.md) | #16 布局失败与 #17 成功：供电/偏压、DTB 契约、链接与镜像审查 |
+| [b2n-boot-bringup.md](b2n-boot-bringup.md) | K1 研究启动镜像（#18）：boot v0 打包、initramfs、日志通道、上机步骤/失败处置/验收 |
 | [oh66-display-power.md](oh66-display-power.md) | 显示供电补丁说明：PM660 L11、NT50356 时序、构建验收 |
 
 ## 硬件与板级
