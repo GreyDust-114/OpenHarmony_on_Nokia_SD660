@@ -371,7 +371,8 @@
         "SDM_MMCC_660",
         "SDM_GPUCC_660",
         "INTERCONNECT_QCOM_SDM660",
-        "RPMSG_QCOM_GLINK_SMEM"
+        "RPMSG_QCOM_GLINK_SMEM",
+        "FB_SIMPLE"
       ],
       "required_symbols": [
         "CONFIG_ARCH_QCOM=y",
@@ -403,7 +404,8 @@
         "CONFIG_SDM_MMCC_660=y",
         "CONFIG_SDM_GPUCC_660=y",
         "CONFIG_INTERCONNECT_QCOM_SDM660=y",
-        "CONFIG_RPMSG_QCOM_GLINK_SMEM=y"
+        "CONFIG_RPMSG_QCOM_GLINK_SMEM=y",
+        "CONFIG_FB_SIMPLE=y"
       ],
       "required_link_symbols": [
         "mdss_dsi_ft8716u_driver",
