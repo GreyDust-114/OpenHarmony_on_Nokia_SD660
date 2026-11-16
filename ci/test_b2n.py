@@ -8,7 +8,7 @@ import unittest
 from unittest import mock
 
 import build_kernel as builder
-from device_tree import inspect_dtb, parse_fdt
+from device_tree import check_dts_layout, inspect_dtb, parse_fdt
 
 
 def u32(*values):
@@ -154,6 +154,63 @@ class B2nBuildTests(unittest.TestCase):
             path.write_text(json.dumps(data))
             with mock.patch.object(builder, "TARGETS_FILE", path), self.assertRaises(ValueError):
                 builder.load_targets()
+
+
+class ComposedDtsLayoutTests(unittest.TestCase):
+    """Placement contract for the patch-composed board source, ahead of dtc."""
+
+    def test_node_that_escapes_the_root_is_rejected_with_its_line(self):
+        # This is the shape run #16 fed to dtc: a stray '};' closed the root
+        # node before the vph_pwr regulator, so dtc reported "25.10-27 syntax
+        # error" with no hint about which node had escaped.
+        broken = (
+            "// SPDX-License-Identifier: GPL-2.0-only\n"
+            "/dts-v1/;\n"
+            "#include \"sdm660.dtsi\"\n"
+            "\n"
+            "/ {\n"
+            "\tmodel = \"Nokia 7 Plus B2N (SDM660)\";\n"
+            "};\n"
+            "\n"
+            "vph_pwr: regulator-vph-pwr {\n"
+            "\tcompatible = \"regulator-fixed\";\n"
+            "};\n"
+        )
+        with self.assertRaisesRegex(ValueError, r"line 9 .*outside the root node"):
+            check_dts_layout(broken)
+
+    def test_nested_node_and_reference_blocks_are_accepted(self):
+        good = (
+            "// SPDX-License-Identifier: GPL-2.0-only\n"
+            "/dts-v1/;\n"
+            "#include \"sdm660.dtsi\"\n"
+            "\n"
+            "/ {\n"
+            "\t/* braces in comments are ignored: { } */\n"
+            "\tmodel = \"Nokia }{ 7 Plus\";\n"
+            "\tvph_pwr: regulator-vph-pwr {\n"
+            "\t\tcompatible = \"regulator-fixed\";\n"
+            "\t\tregulator-min-microvolt = <3700000>;\n"
+            "\t};\n"
+            "};\n"
+            "\n"
+            "&rpm_requests {\n"
+            "\tregulators-1 {\n"
+            "\t\tvreg_l11a_1p8: l11 {\n"
+            "\t\t\tregulator-min-microvolt = <1780000>;\n"
+            "\t\t};\n"
+            "\t};\n"
+            "};\n"
+        )
+        check_dts_layout(good)
+
+    def test_unbalanced_and_missing_root_are_rejected(self):
+        for broken in ("/dts-v1/;\n/ {\n\tmodel = \"x\";\n",
+                       "/dts-v1/;\n",
+                       "/dts-v1/;\n};\n",
+                       "/dts-v1/;\n/ {\n};\n/ {\n};\n"):
+            with self.assertRaises(ValueError):
+                check_dts_layout(broken)
 
 
 if __name__ == "__main__":

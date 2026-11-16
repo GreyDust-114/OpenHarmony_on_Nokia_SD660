@@ -5,7 +5,6 @@ diff --git a/arch/arm64/boot/dts/qcom/sdm660-nokia-b2n.dts b/arch/arm64/boot/dts
  	aliases { serial0 = &blsp1_uart2; };
  
  	chosen { stdout-path = "serial0:115200n8"; };
-+};
 +
 +vph_pwr: regulator-vph-pwr {
 +	compatible = "regulator-fixed";
@@ -14,6 +13,7 @@ diff --git a/arch/arm64/boot/dts/qcom/sdm660-nokia-b2n.dts b/arch/arm64/boot/dts
 +	regulator-max-microvolt = <3700000>;
 +	regulator-always-on;
 +	regulator-boot-on;
++};
  };
  
  &adreno_gpu { status = "disabled"; };

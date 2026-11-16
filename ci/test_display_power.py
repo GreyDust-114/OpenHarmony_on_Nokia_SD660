@@ -6,6 +6,7 @@ import tempfile
 import unittest
 
 import build_kernel as builder
+from device_tree import check_dts_layout
 
 
 class DisplayPowerTests(unittest.TestCase):
@@ -34,6 +35,10 @@ class DisplayPowerTests(unittest.TestCase):
                                cwd=root, check=True, capture_output=True)
 
             dts = (root / "arch/arm64/boot/dts/qcom/sdm660-nokia-b2n.dts").read_text()
+            # Run #16 shipped the vph_pwr regulator outside the root node and
+            # dtc stopped with a bare syntax error; keep the layout check here
+            # so the composed source is rejected before any cloud build.
+            check_dts_layout(dts)
             for token in ('vddi0-supply = <&vreg_l11a_1p8>', "vreg_l11a_1p8: l11",
                           'regulator-min-microvolt = <1780000>', "nt50356@11",
                           'bl-en-gpios = <&tlmm 13 GPIO_ACTIVE_HIGH>',

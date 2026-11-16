@@ -1,4 +1,4 @@
-"""Bounded, offline FDT-v17 inspection and B2N compiled-DTB contracts."""
+"""Bounded, offline FDT-v17 inspection and B2N composed-DTS/DTB contracts."""
 import hashlib
 from pathlib import Path
 import struct
@@ -92,6 +92,113 @@ def inspect_dtb(path, profile=None):
     if "b2n-display" in profiles:
         result["b2n_display_contract"] = _check_display(props)
     return result
+
+
+def _blank_dts_noise(text):
+    """Blank comments, strings and cpp lines, preserving length and newlines."""
+    output = []
+    for line in text.splitlines(True):
+        if line.startswith("#"):
+            output.append("".join("\n" if char == "\n" else " " for char in line))
+        else:
+            output.append(line)
+    text = "".join(output)
+    chars = list(text)
+    index, length = 0, len(text)
+    while index < length:
+        if text.startswith("/*", index):
+            end = text.find("*/", index + 2)
+            if end < 0:
+                raise ValueError("Unterminated DTS block comment")
+            for pos in range(index, end + 2):
+                if chars[pos] != "\n":
+                    chars[pos] = " "
+            index = end + 2
+        elif text.startswith("//", index):
+            end = text.find("\n", index)
+            end = length if end < 0 else end
+            for pos in range(index, end):
+                chars[pos] = " "
+            index = end
+        elif text[index] == '"':
+            end = index + 1
+            while end < length and text[end] != '"':
+                end += 2 if text[end] == "\\" else 1
+            if end >= length:
+                raise ValueError("Unterminated DTS string")
+            for pos in range(index + 1, end):
+                if chars[pos] != "\n":
+                    chars[pos] = " "
+            index = end + 1
+        else:
+            index += 1
+    return "".join(chars)
+
+
+def _dts_line(text, index):
+    return text.count("\n", 0, max(index or 0, 0)) + 1
+
+
+def _dts_item_line(text, clean, start, end):
+    """Line of the first non-blank character of a top-level item."""
+    chunk = clean[start:end]
+    return _dts_line(text, start + len(chunk) - len(chunk.lstrip()))
+
+
+def check_dts_layout(text):
+    """Reject composed board DTS whose device nodes escape the root node.
+
+    dtc accepts only device-tree directives ('/dts-v1/;', '/memreserve/;', ...)
+    and '&label { ... }' reference blocks at file top level. A node definition
+    placed there - for example after a stray '};' that closes the root node
+    early - makes dtc stop with a bare "syntax error" at the node line. Board
+    sources assembled from our patch stack are checked here so the offending
+    line is named before the cloud build fetches any kernel source. This is a
+    placement pre-check, not a device-tree parser: dtc on the runner stays the
+    authority for grammar, includes and semantics.
+    """
+    clean = _blank_dts_noise(text)
+    depth = 0
+    start = 0
+    roots = []
+    for index, char in enumerate(clean):
+        if char == "{":
+            if depth == 0:
+                header = clean[start:index].strip()
+                line = _dts_item_line(text, clean, start, index)
+                if header == "/":
+                    roots.append(line)
+                elif not (header.startswith("&") and header[1:].strip()):
+                    snippet = header.splitlines()[0][:60] if header else ""
+                    raise ValueError(
+                        f"DTS node definition at line {line} is outside the root node "
+                        f"({snippet!r}); dtc rejects this as a syntax error")
+                start = None
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth < 0:
+                raise ValueError(f"Unbalanced '}}' in composed DTS at line {_dts_line(text, index)}")
+            if depth == 0:
+                start = index + 1
+        elif char == ";" and depth == 0:
+            header = clean[start:index].strip()
+            if header and not header.startswith(
+                    ("/dts-v1/", "/memreserve/", "/include/", "/plugin/")):
+                snippet = header.splitlines()[0][:60]
+                raise ValueError(
+                    f"DTS statement at line {_dts_item_line(text, clean, start, index)} is "
+                    f"not a device-tree directive ({snippet!r})")
+            start = index + 1
+    if depth:
+        raise ValueError("Unbalanced '{' in composed DTS")
+    if clean[start:].strip():
+        raise ValueError(
+            f"Trailing DTS item at line {_dts_item_line(text, clean, start, len(clean))}")
+    if not roots:
+        raise ValueError("Composed DTS has no root node '/ { }'")
+    if len(roots) > 1:
+        raise ValueError(f"Composed DTS defines the root node more than once (lines {roots})")
 
 
 def _check_identity(result):

@@ -106,7 +106,7 @@
       "power_patch": {
         "path": "docs/research/drafts/oh66-b2n-display-power-review.patch",
         "origin": "PM660 L11 panel I/O rail, NT50356 bias sequencing driver and i2c7 board wiring",
-        "sha256": "e247425580edc1c4d3d68b45ed444c8c0b7d53991f933c18f1448d69954dbc76"
+        "sha256": "3b38b5319cc30c6fa3c8b8f779147bfccbe9a8a818a49f25b37308d599b78fbd"
       },
       "dtb_targets": ["qcom/sdm660-nokia-b2n.dtb", "qcom/sdm660-xiaomi-lavender.dtb"],
       "dtb_profiles": {"qcom/sdm660-nokia-b2n.dtb": ["b2n-touch", "b2n-display"]},

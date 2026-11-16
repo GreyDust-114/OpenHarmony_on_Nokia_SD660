@@ -10,6 +10,8 @@
 
 - [XPM条件修复与诊断构建 #6](https://github.com/GreyDust-114/OpenHarmony_on_Nokia_SD660/actions/runs/43680269025)：提交`3d74d8c17d3a522fbe5347eea46240a4c5ecda72`，jobs=2，已触发。先在Linux CI验证真实C四组合及原始错误负对照，再执行OH6.6编译；完整镜像使用`make -k`收集独立错误，最终状态以任务页为准。
 
+- [显式排除无关不配套驱动 #7](https://github.com/GreyDust-114/OpenHarmony_on_Nokia_SD660/actions/runs/43688462543)：提交`0eecae5920c730281fe7db2f380160c743e85865`，目标`oh66-ft8716`、jobs=2。已触发，验证`CONFIG_KSM`和`CONFIG_SCSI_UFS_EXYNOS`显式关闭后是否还有相关错误。
+
 本轮没有ADB操作、手机改动、完整OH同步或本机内核编译。没有修改旧4.4目标，也没有改变FT8716补丁。
 
 ## 已抓到的确定失败
@@ -119,6 +121,30 @@ virt/kvm/coalesced_mmio.c:190:4: error: implicit declaration of function 'kvm_io
 本轮将OH6.6完整镜像命令改为`make -k ... Image.gz`，让独立错误在一轮中尽量暴露；仍保持非零退出码、完整错误日志和120分钟上限。不改变配置/触摸对象的快速失败，也不影响旧4.4目标。后续先看C矩阵和诊断构建的实际结果，再决定如何处理剩余基线问题，不盲目连续重跑。
 
 恢复后发布提交`3d74d8c17d3a522fbe5347eea46240a4c5ecda72`并启动#6；GitHub API已确认Linux runner的“Validate CI code and print the build plan”成功。该步骤会运行真实HOST GCC四组合和原始错误负对照；缺少GCC时在Actions环境直接失败而非跳过。因此C矩阵的云端验证已通过，完整内核构建此时仍在运行，不能据此宣称Image成功。
+
+## B2N板级DTB阶段
+
+- 提交：`b33d51945d48d2cfa3cbfa44f874efdd085ec23a`。
+- [任务 #8](https://github.com/GreyDust-114/OpenHarmony_on_Nokia_SD660/actions/runs/43698805523)：`oh66-b2n-dts`，jobs=2。B2N和Lavender均完成真实DTC编译，随后二进制检查器因写死`/soc`而失败；同版本公共树使用`/soc@0`。
+- 修复提交`3dc1cb36998cb6e30640bb961195aaa095250c16`按FT8716 compatible与父I2C控制器MMIO `0xc178000/0x600`定位，保留GPIO/PMIC/IRQ等语义检查。修复前合成`/soc@0`回归复现相同reg检查错误；修复后两种根路径均通过，错误总线地址仍被拒绝。原始DTB/DTS先保存再做语义检查，失败时两份诊断树也保留。
+- [任务 #9](https://github.com/GreyDust-114/OpenHarmony_on_Nokia_SD660/actions/runs/43699621367)：同一B2N DTS补丁和配置，仅修正检查器后启动的验证。28项本地CI测试为27通过、1项GCC矩阵跳过，35项研究测试通过。
+- [任务 #10](https://github.com/GreyDust-114/OpenHarmony_on_Nokia_SD660/actions/runs/43714944632)：显示阶段验证，提交`b506126174418b1cf8c5f5e5b027db96ae1392d0`。任务在验证阶段因Windows CRLF补丁hash与GitHub LF checkout hash不一致而停止，未进入C编译；不是panel API编译错误。
+- 修复提交`fe7cd9157f17e9f72c1c6616e3c65d2f471d0c52`将manifest hash统一为runner实际的LF hash `7a22234d...0965d65f`，并加入回归说明。
+- [任务 #11](https://github.com/GreyDust-114/OpenHarmony_on_Nokia_SD660/actions/runs/43730844061)：已越过hash校验、DTS和补丁阶段，在olddefconfig因无关的`CONFIG_DRM_PANEL_SIMPLE=y`验收项停止，尚未进入panel C编译。
+- 修复提交`a63db295e99616e46b60fc1aa32c0be5f6a90ad8`删除这个与自定义panel无关的配置要求；保留DRM/MSM/DSI和`panel-ft8716u.o`对象目标。
+- [任务 #12](https://github.com/GreyDust-114/OpenHarmony_on_Nokia_SD660/actions/runs/43733365831)：成功；用户提供的 ZIP 与 GitHub digest 一致，68个内部文件校验通过。panel对象实际编译完成，显示DTS生成；panel尚未接入Kconfig/Makefile，Image.gz仍与基线相同。
+- [任务 #13](https://github.com/GreyDust-114/OpenHarmony_on_Nokia_SD660/actions/runs/43738565216)：已通过DTB、配置和panel对象阶段，但完整Image被OH6.6中不一致的DPU writeback代码阻断；B2N只需要MDP5。
+- 修复提交`65b2ec50b2d235614216e8cfda5292b51f137c0c`禁用未使用的`DRM_MSM_DPU`并保留失败回归验收。
+- [任务 #15](https://github.com/GreyDust-114/OpenHarmony_on_Nokia_SD660/actions/runs/43820977993)：B2N原厂packet/timing/GPIO53 reset适配，提交`63aa741c254a6fc8c5dc080367d5d14eef248a45`。120/2原厂包、65条两字节0x39长写保留；Linux CI新增实际传输函数mock测试。NT50356电源/背光仍为后续独立工作。见[硬件适配记录](b2n-panel-hardware-adaptation.md)。
+- [任务 #16](https://github.com/GreyDust-114/OpenHarmony_on_Nokia_SD660/actions/runs/43830761269)：PM660 L11面板供电与NT50356偏压首次验证，提交`12e5864d2f2876f862e52e548719aced432975b9`。B2N DTB在dtc解析阶段失败：`sdm660-nokia-b2n.dts:25.10-27 syntax error`，原因是供电补丁把`vph_pwr`节点放在根节点外，尚未进入内核C编译。修复只移动该节点位置并更新SHA256，未改供电语义或其它补丁；新增组合DTS布局回归，本机真实`cpp`/`dtc`对照通过。详见[显示供电记录](oh66-display-power.md)。
+
+- [任务 #14](https://github.com/GreyDust-114/OpenHarmony_on_Nokia_SD660/actions/runs/43813724013)：成功。ZIP与GitHub digest一致、75个内部文件校验通过；MSM/MDP5/DSI/14nm PHY/panel均内建，最终System.map的三个显示驱动符号通过检查。Image.gz SHA256为`ab89dd4c4ec7697e19a78bbfc18b92c136624cf57bca7a13339e51319397e90b`。详见[显示构建审查](oh66-b2n-display-build-review.md)。
+- 同版本模板：固定OH6.6的Lavender DTS；直接复用SDM660/SDM630及PM660/PM660L公共树。
+- 板级增量：`sdm660-nokia-b2n.dts`、qcom Makefile注册、I2C4地址`0xc178000`、FT8716@0x38、GPIO67下降沿、GPIO66低有效、1080×2160尺寸和GPIO pinctrl。
+- 本轮移除了先前草案中无消费者的3.7V参考regulator；显示/GPU节点保持disabled，panel和NT50356供电作为下一块板级补丁。
+- 构建先编B2N与Lavender对照DTB，对二进制FDT解析并核对GPIO phandle/PMIC/触摸属性，再编FT8716对象和Image.gz；同时保留原始DTS、DTB和校验JSON。
+- 原有两个目标定义与已发布版本逐字段相同。本地27项CI测试为26通过、1项GCC矩阵跳过，35项研究测试通过。Windows新Makefile样例的CRLF差异已通过失败/成功对照定位并统一成LF，SHA已锁定。
+- 推送首次TLS失败后，使用已授权账户只读核对远程仍为父提交，再仅重试一次正常push；本地提交未重做，dispatch只发送一次。
 
 ## 来源
 

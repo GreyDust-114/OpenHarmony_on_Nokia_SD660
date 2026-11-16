@@ -6,6 +6,7 @@ import tempfile
 import unittest
 
 import build_kernel as builder
+from device_tree import check_dts_layout
 
 
 class DisplayLinkTests(unittest.TestCase):
@@ -33,6 +34,7 @@ class DisplayLinkTests(unittest.TestCase):
             self.assertIn("config DRM_PANEL_B2N_FT8716U", (panel / "Kconfig").read_text())
             self.assertIn("obj-$(CONFIG_DRM_PANEL_B2N_FT8716U) += panel-ft8716u.o", (panel / "Makefile").read_text())
             dts = (root / "arch/arm64/boot/dts/qcom/sdm660-nokia-b2n.dts").read_text()
+            check_dts_layout(dts)
             self.assertIn('compatible = "nokia,b2n-ft8716u";', dts)
             self.assertIn('reset-gpios = <&tlmm 53 GPIO_ACTIVE_LOW>;', dts)
             self.assertNotIn('reset-gpios = <&tlmm 62 GPIO_ACTIVE_LOW>;', dts)
