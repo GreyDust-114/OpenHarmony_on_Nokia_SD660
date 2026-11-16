@@ -1,6 +1,6 @@
 # 第四轮：双路线最小改动清单与电脑侧验收
 
-> 后续进展：已转为GitHub Actions构建，首次Nokia 4.4基线成功并完成[下载产物审查](baseline-build-review.md)。本文中的“未编译”等描述保留第四轮当时状态；A0现已通过，但OH前置配置、token/HAL和实机验证仍未完成。
+> 后续进展：已转为GitHub Actions构建，首次Nokia 4.4基线成功并完成[下载产物审查](archive/baseline-build-review.md)。本文中的“未编译”等描述保留第四轮当时状态；A0现已通过，但OH前置配置、token/HAL和实机验证仍未完成。
 >
 > **当前总路线与阶段计划已移到[移植总路线](port-roadmap.md)**（2026-11）：主路线收敛为 OH 7.0 Linux 标准系统 + B2N 6.6 内核 + 用户态 DRM VDI，Oniro hybris 降为后备。本文保留为双路线的详细工作项与历史推导。
 
@@ -232,7 +232,7 @@ python -B -m unittest discover -s docs/research/scripts -p 'test*.py' -v
 
 所有如下代码均来自维护方仓库或其Oniro镜像；新增源的精确URL和校验值在`evidence/minimal-plan/index.json`。
 
-- [C1] [Nokia内核固定提交](https://github.com/nokia-msm8998/android_kernel_nokia_sdm660/tree/192f8b2a0a1bbb4042df16bdacd802a4321c5f53)；本机历史配置`evidence/device-kernel.config`；版本限制见[route-audit.md](route-audit.md)。
+- [C1] [Nokia内核固定提交](https://github.com/nokia-msm8998/android_kernel_nokia_sdm660/tree/192f8b2a0a1bbb4042df16bdacd802a4321c5f53)；本机历史配置`evidence/device-kernel.config`；版本限制见[route-audit.md](archive/route-audit.md)。
 - [A1] [Nokia Binder设备配置](https://github.com/nokia-msm8998/android_kernel_nokia_sdm660/blob/192f8b2a0a1bbb4042df16bdacd802a4321c5f53/drivers/android/Kconfig)；[Oniro LTS launcher](https://github.com/eclipse-oniro4openharmony/device_board_oniro/blob/e86d7bc152579cda2cb002d1e19357edb84d9c61/hybris_generic/launcher/androidd.c)。
 - [A2] [OH IPC binder_connector.cpp](https://github.com/eclipse-oniro-mirrors/communication_ipc/blob/61d4cd7f72018e23a7b4e68c268b8f85dc5615e9/ipc/native/src/core/invoker/source/binder_connector.cpp)，同提交`binder_invoker.cpp`与`ipc/native/src/core/framework/include/sys_binder.h`。
 - [A3] [OH token_setproc.c](https://github.com/eclipse-oniro-mirrors/security_access_token/blob/2da9dbc395ac5aa4f1974e4a554cd7c19eb5c388/interfaces/innerkits/token_setproc/src/token_setproc.c)。

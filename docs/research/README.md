@@ -1,47 +1,61 @@
 # Nokia 7 Plus / SD660 OpenHarmony 研究索引
 
-## 当前状态
+## 当前状态与主线
 
 目标：原生启动、显示、触摸；暂不追求完整手机功能。
 
-约束：手机仍保存个人数据并承担短信接收/转发，禁止修改或中断现有系统。第三轮经用户授权使用现有su只读；第四轮未再操作手机。没有刷机、重启、切槽或部署实验驱动。
+约束：手机保存个人数据并承担短信接收/转发；禁止未经授权的刷写；真机实验只走"不写分区、失败即重启回 Android"的临时启动流程。
 
-**最新验证结果：[B2N 显示供电构建审查](oh66-b2n-power-build-review.md)。** 云CI已编译并通过二进制契约：B2N DTB（PM660 L11面板1.8V与NT50356偏压节点）、panel与bias对象、显示/供电驱动链接、有效ARM64 `Image.gz`；仍是编译级产物，没有上机运行。后续工作清单仍见[移植总路线](port-roadmap.md)（旧的[minimal-port-plan.md](minimal-port-plan.md)保留为第四轮历史清单）。
+- **当前路线**：OH 7.0 Linux 标准系统 + B2N 6.6 内核 + 用户态 DRM VDI + evdev/Mesa（路线 B），
+  Oniro hybris 为后备。目标拆成 K1/K2/U1/U2/U3 真机里程碑，详见[移植总路线](port-roadmap.md)。
+- **最新验证结果**：云 CI [#17](https://github.com/GreyDust-114/OpenHarmony_on_Nokia_SD660/actions/runs/43833334992) 成功（B2N DTB 契约、panel/bias 对象、显示/供电符号、有效 `Image.gz`），
+  仍是编译级证据；真机里程碑 K1 尚未开始。产物审查见[供电构建审查](oh66-b2n-power-build-review.md)。
+- **建议阅读顺序**：[移植总路线](port-roadmap.md) → [云构建运行记录](oh66-cloud-run.md) → 最近一次 [构建审查](oh66-b2n-power-build-review.md) → [415I 硬件事实](b2n-415I-boot-extraction.md) → 参考材料。
 
-- 两条主候选：旧4.4 + OH/Halium/libhybris；OH6.6 + 上游SD660驱动 + B2N适配。
-- 路线已收敛：**OH 7.0 Linux 标准系统 + B2N 6.6 内核 + 用户态 DRM VDI**为主，Oniro hybris 降为后备；理由与阶段门槛见[移植总路线](port-roadmap.md)。
-- 已产出[FT8716评审草案](drafts/README.md)与B2N板级/显示/供电补丁，均已通过云CI编译与链接；未在手机运行。
-- 已有面板包级审查和HAL第一层依赖图；尚未证明显示驱动在B2N上实际出图、HAL或OH桌面可运行。
-- 主机已登记WSL2，C盘空间不足以直接规划全量OH；现已转为[GitHub Actions单内核云编译](../cloud-build.md)。已推送最小CI文件并成功完成首次Nokia 4.4云构建；本机只检查小产物，没有安装或清理构建环境。
+## 路线与计划
 
-## 各轮资料
+| 文档 | 状态 | 说明 |
+|---|---|---|
+| [port-roadmap.md](port-roadmap.md) | **当前权威** | 总路线、K1–U3 里程碑、阶段工作包、风险、红线与已确认决策（2026-11-16） |
+| [minimal-port-plan.md](minimal-port-plan.md) | 历史计划 | 第四轮双路线最小改动清单与决策门槛；工作项已部分完成，路线优先级已被总路线修订 |
 
-1. [第一轮可行性基线](feasibility.md)：只读shell信息、候选架构与风险。
-2. [第二轮源码路线审计](route-audit.md)：现代SD660驱动、Oniro图形与内核适配。
-3. [第三轮root实机证据](root-hardware-and-routes.md)：FT8716U/FT8716变体、面板序列匹配、启动头和HAL元数据。
-4. [第四轮最小改动与门槛](minimal-port-plan.md)：两条工作清单、FT8716草案、DSI类型差异、Binder功能分层。
-5. [GitHub发布与首次任务](github-publication.md)：最小上传边界、保留初始历史、任务链接。
-6. [首次基线产物审查](baseline-build-review.md)：ZIP及GitHub digest匹配、有效ARM64 Image、10个DTB、配置与日志限制。
-7. [OH6.6云端尝试](oh66-cloud-run.md)：FT8716、KVM对象编译已通过；任务#7生成了有效generic ARM64 `Image.gz`，配置与限制详见[OH6.6产物审查](oh66-build-review.md)。
-8. [SDM660公开移植参考](sdm660-open-source-references.md)：主线SDM660多设备DTS、Jasmine板级结构、FT8716U DRM panel/binding和下一步B2N适配表。
-9. [B2N DTS草案](drafts/oh66-b2n.dts)：采用OH6.6同版本Lavender结构与公共SoC/PMIC树，已接入独立`oh66-b2n-dts`云目标及编译后二进制属性检查；任务链接见[运行记录](oh66-cloud-run.md)。
-10. [B2N DTS构建审查](oh66-b2n-dts-build-review.md)：B2N/对照DTB、I2C4/FT8716/GPIO66/67/1080×2160合同、触摸对象和Image.gz均已完成。
-11. [B2N显示内建链接审查](oh66-b2n-display-build-review.md)：MSM/MDP5/DSI/14nm PHY/panel全部内建，System.map三个显示符号通过（#14）。
-12. [B2N面板硬件适配](b2n-panel-hardware-adaptation.md)：原厂120/2包命令流、timing、GPIO53 reset与传输实现（#15）。
-13. [B2N显示供电与偏压](oh66-display-power.md)：PM660 L11面板1.8V、NT50356 GPIO时序；#16布局失败与修复、#17构建结果见[供电构建审查](oh66-b2n-power-build-review.md)。
-14. [移植总路线与下一步](port-roadmap.md)：目标拆成K1/K2/U1/U2/U3真机里程碑；主路线收敛为 OH 7.0 Linux 标准系统 + B2N 6.6 内核 + 用户态 DRM VDI，Oniro hybris 降为后备；含阶段计划、风险与待授权事项。
+## 构建与验证记录
 
-后轮会修正/细化前轮结论，前轮的权限与证据范围仅描述当时状态。
+| 文档 | 说明 |
+|---|---|
+| [oh66-cloud-run.md](oh66-cloud-run.md) | 历次云构建运行记录（#1–#17）：失败点、修复提交、任务链接 |
+| [oh66-b2n-dts-build-review.md](oh66-b2n-dts-build-review.md) | B2N DTS/DTB 二进制契约阶段审查 |
+| [oh66-b2n-display-build-review.md](oh66-b2n-display-build-review.md) | #14：MSM/MDP5/DSI/panel 内建链接审查 |
+| [oh66-b2n-power-build-review.md](oh66-b2n-power-build-review.md) | #16 布局失败与 #17 成功：供电/偏压、DTB 契约、链接与镜像审查 |
+| [oh66-display-power.md](oh66-display-power.md) | 显示供电补丁说明：PM660 L11、NT50356 时序、构建验收 |
+
+## 硬件与板级
+
+| 文档 | 说明 |
+|---|---|
+| [b2n-415I-boot-extraction.md](b2n-415I-boot-extraction.md) | 原厂 boot 镜像提取（临时启动、未写分区）与真机硬件事实：面板命令、触摸、偏压、DT 参数 |
+| [b2n-panel-hardware-adaptation.md](b2n-panel-hardware-adaptation.md) | FT8716U 原厂 120/2 命令流、timing、GPIO53 reset 与传输实现 |
+| [sdm660-open-source-references.md](sdm660-open-source-references.md) | SDM660 主线 DTS/DRM/PMIC 参考与下一步适配表 |
+
+## 归档（历史，不再维护）
+
+第一至四轮路线审计、旧 4.4 基线审查、generic OH6.6 阶段审查、root/提权调查等已移入
+[archive/](archive/README.md)（仅本地保留，不随公开仓库发布）。
 
 ## 电脑侧可重复检查
 
-从项目根目录运行，使用已有Python和git：
+从项目根目录运行，使用已有 Python 和 git：
 
 ```powershell
 python -B docs/research/scripts/audit_minimal_routes.py
 python -B -m unittest discover -s docs/research/scripts -p 'test*.py' -v
 ```
 
-这两条不联网、不调用ADB，不安装依赖；只校验/解析已有快照并生成评审材料。其他带`root-readonly`的采集脚本**会调用ADB/su**，不要把它们混同于离线检查自动运行。
+这两条不联网、不调用 ADB、不安装依赖；只校验/解析已有快照并生成评审材料。其他带 `root-readonly`
+的采集脚本**会调用 ADB/su**，不要把它们混同于离线检查自动运行。
 
-来源快照在`evidence/`，机器可读结果在`generated/`。没有镜像或可安全刷写的产物；真实启动实验仍需独立的数据/短信替代/恢复准备和用户授权。
+## 证据与发布边界
+
+来源快照在 `evidence/`，机器可读结果在 `generated/`；这两个目录被 `.gitignore` 忽略，不随仓库发布。
+公开仓库只发布 CI 代码、公开源码样例、补丁草案与对应说明，不发布设备证据、boot 镜像、分区数据或
+主机状态。真实启动实验仍须遵守总路线中的红线与授权边界。

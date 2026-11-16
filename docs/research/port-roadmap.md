@@ -1,7 +1,7 @@
 # B2N / OpenHarmony 移植总路线与下一步（2026-11 更新）
 
 > 本文是当前的总路线与阶段门槛。历史轮次的详细证据和推导仍见各专项文档：
-> [路线审计](route-audit.md)、[最小改动清单](minimal-port-plan.md)、[B2N DTS构建审查](oh66-b2n-dts-build-review.md)、
+> [路线审计](archive/route-audit.md)、[最小改动清单](minimal-port-plan.md)、[B2N DTS构建审查](oh66-b2n-dts-build-review.md)、
 > [显示构建审查](oh66-b2n-display-build-review.md)、[供电构建审查](oh66-b2n-power-build-review.md)、
 > [415I boot 提取](b2n-415I-boot-extraction.md)、[运行记录](oh66-cloud-run.md)。
 > 前轮结论被本轮修订的地方会明确写出。
@@ -100,7 +100,7 @@
 | P0-2 内核启动补全 | B2N DTS 增加 `qcom,msm-id`/`qcom,board-id` 等 bootloader 选择属性、reserved-memory+ramoops、sdhci、dwc3+PHY、rpm/时钟、fbcon、pstore、gadget serial；新增 `oh66-b2n-boot` CI 目标 | 配置验收 + DTB 契约 + `Image.gz`；provenance 记录全部输入 |
 | P0-3 真机 K1 | `fastboot boot` 研究 boot 镜像，pstore/USB serial 取日志 | 完整 dmesg、eMMC 未写入、可随时重启回 Android |
 | P0-4 OH 基线锁定 | 把内核 pin 迁到 OH 7.0-Release 的 `kernel_linux_6.6`，重放 B2N 补丁，记录 commit SHA；CI 继续通过 | 补丁全部 apply、DTB 契约与 #17 等价 |
-| P0-5 构建资源 spike | `qemu_arm64_linux_full` 的 repo 清单、磁盘/内存/时间实测或估算，构建宿主方案对比 | 形成明确预算与选型，不盲目下载 180GB |
+| P0-5 构建资源 spike | `qemu_arm64_linux_full` 的 repo 清单、磁盘/内存/时间实测或估算；本机 WSL2 虚拟盘扩容与外置盘挂载方案 | 形成明确预算与操作方案；先不下载/构建 180GB |
 
 ### P1：K2 真机显示/触摸
 
@@ -123,9 +123,9 @@
 
 1. **P0-1 boot 打包器**（纯软件，可离线测试）——没有它后面所有真机实验都做不了。
 2. **P0-2 内核启动补全 + 新 CI 目标**（P0-2 与 P0-1 可并行）。
-3. **P0-5 构建资源 spike**（不需要手机，决定用户态在哪构建）。
+3. **P0-5 构建资源 spike**（不需要手机；方向已定为本机 WSL + 外置盘扩容，先做容量/方案实测）。
 4. **P0-4 OH 7.0 内核基线迁移**（决定用户态与内核版本对齐）。
-5. **P0-3 真机 K1**（需要 §7 的授权）。
+5. **P0-3 真机 K1**（已授权，见 §8；在 P0-1/P0-2 就绪后单独安排）。
 
 ## 6. 风险清单
 
@@ -147,9 +147,21 @@
 - 不做未经授权的重启、刷写、驱动部署；手机承担短信接收/转发。
 - 每个真机阶段结束后恢复到 Android 10 正常启动。
 
-需要用户拍板的事项见随附说明：路线选择、真机实验授权与节奏、OH 构建宿主资源。
+需要用户拍板的事项已确认，见 §8。
 
-## 8. 来源（本轮新证据）
+## 8. 决策记录与授权边界（2026-11-16 已确认）
+
+| 决策 | 结论 |
+|---|---|
+| D1 路线 | **按 B 为主推进**：OH 7.0 Linux 标准系统 + B2N 6.6 内核 + 用户态 DRM VDI；Oniro hybris 仅作后备，不投入 |
+| D2 真机授权 | **允许** K1 式 `fastboot boot` 临时启动实验。约束：单次 ≤30 分钟、不写任何分区、不挂载原 userdata/NV 为可写、失败立即重启回 Android 10、每次实验前告知 |
+| D3 构建宿主 | **本机 WSL2 + 外置盘扩容**；P0-5 先做容量实测、WSL 虚拟盘扩容/外置盘挂载方案与预算，再决定是否下载源码 |
+| D4 U2 验收口径 | **接受**"先 CPU 渲染（Mesa kms_swrast）出桌面、GPU（freedreno）后置" |
+
+决策后的执行状态：P0-1/P0-2/P0-4/P0-5 可立即开始（全部不碰手机）；K1 在 boot 镜像、内核启动配置
+就绪后单独安排，并遵守 §7 红线。
+
+## 9. 来源（本轮新证据）
 
 - [OH 7.0-Release manifest](https://github.com/openharmony/manifest/blob/OpenHarmony-7.0-Release/ohos/ohos.xml)：`kernel/linux/linux-6.6` 与全量组件版本。
 - [qemu_arm64_linux_full 产品配置](https://github.com/openharmony/vendor_ohemu/blob/master/qemu_arm64_linux_full/config.json)：standard 系统、graphic、multimodalinput、ramdisk、SELinux permissive。
