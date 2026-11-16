@@ -198,6 +198,15 @@ class BootTargetContractTests(unittest.TestCase):
         self.assertIn("dmesg", self.script)
         self.assertTrue(self.script.startswith("#!"))
 
+    def test_init_script_recovers_pstore_and_redumps_logs(self):
+        # A panic may truncate the session before the host opens the port, so
+        # the script must replay previous pstore records and keep re-dumping.
+        self.assertIn("/sys/fs/pstore", self.script)
+        self.assertIn("cat /dev/kmsg", self.script)
+        self.assertIn("b2n: alive t=", self.script)
+        self.assertIn("dmesg > \"$SERIAL\"", self.script)
+        self.assertIn("/dev/pmsg0", self.script)
+
     def test_workflow_offers_boot_target_and_busybox(self):
         source = (builder.PROJECT / ".github/workflows/kernel-build.yml").read_text()
         self.assertIn("oh66-b2n-boot", source)
