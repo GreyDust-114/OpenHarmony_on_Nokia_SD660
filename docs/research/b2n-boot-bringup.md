@@ -48,7 +48,50 @@
   `package-boot-image` 计划步骤，执行后校验报告哈希并把 `DO-NOT-FLASH.txt` 写入产物目录。
 - `ci/kernel-targets.json`：新增 `oh66-b2n-boot` 目标（在 `oh66-b2n-dts` 基础上增加启动配置与
   `boot_image` 定义）；`oh66-b2n-dts` 目标保持不变。
-- 工作流：目标选项增加 `oh66-b2n-boot`，runner 额外安装 `busybox-static`。
+- 工作流：目标选项增加 `oh66-b2n-boot`；initramfs 的 shell 使用仓库内 aarch64 静态 busybox
+  夹具（见下文"K1 真机结果与根因"），不依赖 runner 的主机架构包。
+
+## K1 真机结果与根因（2026-11-17）
+
+### 现象
+
+用 #18 镜像（以及多个本地重打包变体）在 B2N 上 `fastboot boot`：bootloader 接受镜像并
+`Booting OKAY`，但设备约 30 秒后自动复位回 Android；去掉 `panic=10` 后设备挂住不重启
+（确认是真 panic，不是看门狗）。屏幕始终停在 bootloader 的 Android One 开屏画面；USB 串口
+从未出现；init 内容（主动 reboot/最小 sleep/带 gadget）不影响复位时机。
+
+### QEMU 复现与根因
+
+用本地 WSL 的 QEMU `virt` 机器启动同一份 `Image.gz`（标准 virt 设备树 + 最小 initramfs），
+串口直接打印出：
+
+```text
+Run /init as init process
+Failed to execute /init (error -8)   # ENOEXEC
+Kernel panic - not syncing: No working init found.
+```
+
+`error -8` 是 `ENOEXEC`：initramfs 里的 `/bin/busybox` 是 **x86-64** 二进制（GitHub Actions
+runner 为 x86-64，`apt-get install busybox-static` 装的是主机架构包），aarch64 内核无法执行
+`/init` 脚本的 shebang 解释器，于是内核在全部 initcalls 之后 panic "No working init found"。
+这与真机观测完全吻合：复位时机、无串口、无面板控制台、init 内容无关。
+
+### 修复
+
+- 仓库内固定 aarch64 静态 busybox（Debian `busybox-static_1.38.0-3+b2_arm64`，
+  SHA256 `56c16b82...`，见 `ci/fixtures/README.md`）；打包器与 initramfs 生成器在打包时校验
+  ELF machine，防止再次混入主机架构二进制。
+- `ci/make_initramfs.py` 生成 raw newc cpio，CI 通过 `CONFIG_INITRAMFS_SOURCE` 把它**嵌入内核**：
+  内置 initramfs 总是会被解包，不依赖 bootloader 是否把 boot image 的 ramdisk 字段传给内核。
+- 同时保留 boot 镜像 ramdisk 打包路径（外部 initrd 会叠加在内置 initramfs 之上）。
+
+### 待验证
+
+- CI 构建（run #24）产出嵌入 initramfs 的内核后，`fastboot boot` 应能到达 `Run /init`：
+  设备不再约 30 秒自动复位，USB ACM 串口与面板至少一个日志通道可用；随后按 K1 验收标准
+  记录 dmesg。
+- 若嵌入 initramfs 后仍 panic，则说明存在设备早期/硬件相关的 panic（与 initramfs 传递无关），
+  需要下一轮用早期日志通道定位。
 
 ## 板级 DTS 增量
 
@@ -67,7 +110,8 @@
 
 1. `adb devices` 确认手机正常；如需进 bootloader：`adb reboot bootloader`（进入 fastboot 会中断 Android）。
 2. `fastboot devices` 确认设备；本次只使用 `fastboot boot`，**不执行任何 `flash`/`flashall`/`erase`**。
-3. `fastboot boot boot-b2n-research.img`（镜像从 #18 artifact 取出；只加载到内存）。
+3. `fastboot boot boot-b2n-research.img`（只加载到内存）。**根因修复后应使用嵌入 initramfs 的
+   新镜像（run #24 及之后）**，见上文"K1 真机结果与根因"。
 4. 观察两个日志通道：
    - 面板：应出现内核 fbcon 控制台/日志（照片记录）；
    - 主机：USB ACM 串口（Linux `/dev/ttyACM*`，115200 8N1）读取 dmesg 与 `b2n: initramfs reached`

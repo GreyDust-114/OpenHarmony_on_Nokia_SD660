@@ -148,6 +148,28 @@ virt/kvm/coalesced_mmio.c:190:4: error: implicit declaration of function 'kvm_io
 - 原有两个目标定义与已发布版本逐字段相同。本地27项CI测试为26通过、1项GCC矩阵跳过，35项研究测试通过。Windows新Makefile样例的CRLF差异已通过失败/成功对照定位并统一成LF，SHA已锁定。
 - 推送首次TLS失败后，使用已授权账户只读核对远程仍为父提交，再仅重试一次正常push；本地提交未重做，dispatch只发送一次。
 
+## K1 研究启动镜像与根因修复（2026-11-17）
+
+- [任务 #22](https://github.com/GreyDust-114/OpenHarmony_on_Nokia_SD660/actions/runs/43864113011)：
+  提交 `630c904`，成功。改进版 K1 initramfs：先回放 `/sys/fs/pstore`；gadget 建立后把
+  `/dev/kmsg` 流到 ACM 串口；每 15 秒重新 dump dmesg 到串口/面板/pmsg；每 5 秒打印 alive
+  标记；仍只做内存启动，不写任何分区。离线测试 53 项通过（2 项无本地 GCC 跳过）。
+- [任务 #23](https://github.com/GreyDust-114/OpenHarmony_on_Nokia_SD660/actions/runs/43894872745)：
+  提交 `e9d4004`，成功。boot 目标增加 `CONFIG_FB_SIMPLE=y`，尝试用 bootloader 留下的
+  splash framebuffer（`0x9d400000`，1080x2160，stride 4352，32bpp）作为早期面板控制台。
+- [任务 #24](https://github.com/GreyDust-114/OpenHarmony_on_Nokia_SD660/actions/runs/43915830974)：
+  提交 `477dd7f`。修复 K1 真正根因：CI runner 为 x86-64，`apt-get install busybox-static`
+  装出的主机架构 busybox 被放进 aarch64 initramfs，内核执行 `/init` 时返回 `ENOEXEC`，
+  最终 panic `No working init found`（真机上没有控制台，看起来像早期内核 panic）。
+  修复内容：仓库固定 aarch64 静态 busybox（Debian busybox-static 1.38.0-3+b2 arm64，
+  SHA256 `56c16b82...`）；打包器与 `ci/make_initramfs.py` 校验 ELF machine；工作流在编译前
+  生成 raw cpio 并通过 `CONFIG_INITRAMFS_SOURCE` 把 bring-up initramfs 嵌入内核，使 `/init`
+  不再依赖 bootloader 是否转发 boot image 的 ramdisk 字段。
+- 根因证据：本地 QEMU `virt` 启动同一 `Image.gz` 时串口打印 `Run /init as init process` →
+  `Failed to execute /init (error -8)` → `Kernel panic - not syncing: No working init found.`；
+  换用 aarch64 busybox 后 QEMU 正常到达用户态。详见
+  [启动镜像与 K1 准备](b2n-boot-bringup.md)。
+
 ## 来源
 
 - [固定内核fs/Kconfig](https://github.com/eclipse-oniro-mirrors/kernel_linux_6.6/blob/31c8f21f4c95d59c8e730038b868109e9244a936/fs/Kconfig)
