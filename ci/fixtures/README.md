@@ -93,3 +93,39 @@ The B2N regression applies the actual board patch to this fixture and verifies
 that the registered DTS equals the checked-in draft. FDT binary tests generate
 synthetic trees in memory, checking phandle resolution, PMIC inclusion and the
 GPIO67 falling-edge contract. No original device DTB is published as a fixture.
+
+## `busybox-aarch64`
+
+Statically linked aarch64 busybox used as the initramfs shell of the B2N
+research boot image.
+
+- Origin: Debian package `busybox-static_1.38.0-3+b2_arm64.deb` from the Debian
+  arm64 archive (`https://deb.debian.org/debian/pool/main/b/busybox/`),
+  extracted from `usr/bin/busybox`.
+- SHA256: `56c16b82816bef1bf861e89d2208f859c3751a2adeb4c72233bf4d44879e7d6e`
+- Size: 1,980,720 bytes; `ELF 64-bit LSB executable, ARM aarch64, statically
+  linked, stripped`.
+- License: GPL-2.0 (busybox); see the package copyright file for details.
+
+The binary is checked in because the GitHub Actions runner is x86-64:
+`apt-get install busybox-static` there installs an x86-64 binary, and an
+aarch64 kernel cannot exec a `/init` whose shebang interpreter has the wrong
+architecture. That fails with `ENOEXEC` and the kernel panics with
+"No working init found", which is indistinguishable from a real early panic
+when the device has no console.
+
+`ci/boot_image.py` now validates the ELF machine when packing the boot image,
+and `ci/make_initramfs.py` validates it again while generating the raw cpio that
+is embedded through `CONFIG_INITRAMFS_SOURCE`. Embedding the initramfs makes
+`/init` independent of whether the bootloader forwards the boot image ramdisk
+field to the kernel. The generated `k1-initramfs.cpio` itself is a CI build
+product and is not committed.
+
+To rebuild the fixture on a Debian/Ubuntu host:
+
+```sh
+curl -LO https://deb.debian.org/debian/pool/main/b/busybox/busybox-static_1.38.0-3+b2_arm64.deb
+dpkg-deb -x busybox-static_1.38.0-3+b2_arm64.deb busybox-arm64
+cp busybox-arm64/usr/bin/busybox ci/fixtures/busybox-aarch64
+sha256sum ci/fixtures/busybox-aarch64
+```

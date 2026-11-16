@@ -67,8 +67,24 @@ jobs:
             sudo apt-get install -y --no-install-recommends \
               build-essential bc bison flex libssl-dev libelf-dev libncurses-dev \
               clang-14 llvm-14 lld-14 gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi \
-              git python3 python3-yaml rsync xz-utils busybox-static
+              git python3 python3-yaml rsync xz-utils
           } 2>&1 | tee "$RUNNER_TEMP/b2n-kernel/artifacts/logs/runner-packages.log"
+
+      - name: Generate the embedded bring-up initramfs
+        shell: bash
+        # The runner is x86-64: the initramfs shell must stay the checked-in
+        # aarch64 busybox, otherwise the aarch64 kernel cannot exec /init and
+        # panics with "No working init found". The cpio is embedded through
+        # CONFIG_INITRAMFS_SOURCE so it does not depend on the bootloader
+        # forwarding the boot image ramdisk field to the kernel.
+        run: |
+          set -euo pipefail
+          python3 -B ci/make_initramfs.py \
+            --busybox ci/fixtures/busybox-aarch64 \
+            --init-script ci/fixtures/b2n-bringup-init.sh \
+            --out ci/fixtures/k1-initramfs.cpio \
+            | tee "$RUNNER_TEMP/b2n-kernel/artifacts/logs/embedded-initramfs.log"
+          cp ci/fixtures/k1-initramfs.cpio "$RUNNER_TEMP/b2n-kernel/artifacts/embedded-initramfs.cpio"
 
       - name: Validate CI code and print the build plan
         shell: bash

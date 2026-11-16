@@ -421,7 +421,7 @@
         "dtb": "qcom/sdm660-nokia-b2n.dtb",
         "output": "research-boot-not-for-flashing/boot-b2n-research.img",
         "init_script": "ci/fixtures/b2n-bringup-init.sh",
-        "busybox": "/bin/busybox",
+        "busybox": "ci/fixtures/busybox-aarch64",
         "cmdline": "console=tty0 console=ttyGS0,115200 console=ttyMSM0,115200n8 ignore_loglevel loglevel=8 panic=10",
         "max_bytes": 67108864,
         "page_size": 4096,
@@ -429,7 +429,8 @@
         "ramdisk_addr": 16777216,
         "second_addr": 15728640,
         "tags_addr": 256
-      }
+      },
+      "embed_initramfs": "ci/fixtures/k1-initramfs.cpio"
     }
   }
 }

@@ -117,7 +117,30 @@ def _cpio_entry(name: str, mode: int, ino: int, data: bytes = b"") -> bytes:
     return entry
 
 
-def build_initramfs(files: dict[str, tuple[bytes, int]], *, directories: tuple[str, ...] = ()) -> bytes:
+ELF_MACHINE_AARCH64 = 0xB7
+
+
+def validate_busybox(data: bytes) -> None:
+    """The initramfs is executed by the B2N's aarch64 kernel.
+
+    A host-arch (x86-64) busybox makes the kernel exec of /init fail with
+    ENOEXEC and the kernel then panics with "No working init found", which is
+    indistinguishable from a real early panic without a console.  Reject the
+    wrong architecture at packing time instead.
+    """
+    if len(data) < 20 or data[:4] != b"\x7fELF":
+        raise ValueError("busybox must be an ELF binary")
+    if data[4] != 2:
+        raise ValueError("busybox must be a 64-bit ELF (ELFCLASS64)")
+    machine = int.from_bytes(data[18:20], "little")
+    if machine != ELF_MACHINE_AARCH64:
+        raise ValueError(
+            f"busybox must target aarch64 (ELF e_machine 0x{ELF_MACHINE_AARCH64:x}), "
+            f"got 0x{machine:x}; the initramfs is executed by an aarch64 kernel")
+
+
+def build_initramfs(files: dict[str, tuple[bytes, int]], *, directories: tuple[str, ...] = (),
+                    compress: bool = True) -> bytes:
     """Build a gzip-compressed newc cpio initramfs from path -> (bytes, mode)."""
     if "init" not in files:
         raise ValueError("initramfs requires an 'init' file")
@@ -146,12 +169,13 @@ def build_initramfs(files: dict[str, tuple[bytes, int]], *, directories: tuple[s
         entries += _cpio_entry(name, mode, ino, data)
         ino += 1
     entries += _cpio_entry("TRAILER!!!", 0, ino)
-    return gzip.compress(bytes(entries), mtime=0, compresslevel=9)
+    raw = bytes(entries)
+    return gzip.compress(raw, mtime=0, compresslevel=9) if compress else raw
 
 
 def parse_initramfs(blob: bytes) -> dict[str, tuple[bytes, int]]:
-    """Parse a gzip newc initramfs back into path -> (bytes, mode)."""
-    raw = gzip.decompress(blob)
+    """Parse a newc initramfs (gzip-compressed or raw) back into path -> (bytes, mode)."""
+    raw = gzip.decompress(blob) if blob.startswith(b"\x1f\x8b") else blob
     result = {}
     offset = 0
     while True:
@@ -190,9 +214,11 @@ def build_boot_image(image_gz: Path, dtb: Path, busybox: Path, init_script: Path
     script = init_script.read_bytes()
     if not script.startswith(b"#!"):
         raise ValueError("init script needs a shebang")
+    busybox_bytes = busybox.read_bytes()
+    validate_busybox(busybox_bytes)
     initramfs = build_initramfs({
         "init": (script, 0o100755),
-        "bin/busybox": (busybox.read_bytes(), 0o100755),
+        "bin/busybox": (busybox_bytes, 0o100755),
     }, directories=("bin",))
     image = build_boot_v0(payload, initramfs, cmdline, **addrs)
     if len(image) > max_bytes:
@@ -215,6 +241,8 @@ def build_boot_image(image_gz: Path, dtb: Path, busybox: Path, init_script: Path
                          "sha256": sha256_bytes(dtb_bytes)},
         "initramfs_bytes": len(initramfs), "initramfs_sha256": sha256_bytes(initramfs),
         "initramfs_entries": sorted(parse_initramfs(initramfs)),
+        "busybox": {"name": busybox.name, "bytes": len(busybox_bytes),
+                    "sha256": sha256_bytes(busybox_bytes), "elf_machine": "aarch64"},
         "cmdline": cmdline,
         "header": {key: parsed[key] for key in (
             "magic", "kernel_size", "kernel_addr", "ramdisk_size", "ramdisk_addr",

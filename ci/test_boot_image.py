@@ -18,6 +18,12 @@ def fdt_blob(size=64):
     return struct.pack(">II", 0xD00DFEED, size) + b"\0" * (size - 8)
 
 
+def fake_elf(machine=0xB7, size=64):
+    """Minimal ELF64 header with the given e_machine (0xb7 = aarch64)."""
+    header = b"\x7fELF" + bytes([2, 1, 1]) + b"\0" * 9 + b"\0\0" + struct.pack("<H", machine)
+    return header + b"\0" * (size - len(header))
+
+
 class BootHeaderTests(unittest.TestCase):
     def test_v0_header_roundtrip_preserves_stock_addresses(self):
         kernel = b"K" * 10000
@@ -72,6 +78,16 @@ class InitramfsTests(unittest.TestCase):
         self.assertEqual(blob, packer.build_initramfs(files, directories=("bin",)))
         self.assertTrue(blob.startswith(b"\x1f\x8b"))
 
+    def test_raw_cpio_supported_for_kernel_embedding(self):
+        files = {"init": (b"#!/bin/busybox sh\n", 0o100755),
+                 "bin/busybox": (fake_elf(), 0o100755)}
+        raw = packer.build_initramfs(files, directories=("bin",), compress=False)
+        self.assertTrue(raw.startswith(b"070701"))
+        self.assertFalse(raw.startswith(b"\x1f\x8b"))
+        parsed = packer.parse_initramfs(raw)
+        self.assertEqual(parsed["init"], files["init"])
+        self.assertEqual(parsed["bin/busybox"], files["bin/busybox"])
+
     def test_unsafe_or_incomplete_inputs_rejected(self):
         with self.assertRaises(ValueError):
             packer.build_initramfs({"bin/busybox": (b"x", 0o100755)})
@@ -79,6 +95,49 @@ class InitramfsTests(unittest.TestCase):
             packer.build_initramfs({"init": (b"x", 0o100755), "../escape": (b"y", 0o100644)})
         with self.assertRaises(ValueError):
             packer.build_initramfs({"init": (b"x", 0o100755), "/abs": (b"y", 0o100644)})
+
+    def test_wrong_arch_busybox_rejected(self):
+        packer.validate_busybox(fake_elf(0xB7))
+        with self.assertRaises(ValueError):
+            packer.validate_busybox(fake_elf(0x3E))  # x86-64
+        with self.assertRaises(ValueError):
+            packer.validate_busybox(b"\x7fELF\x01\x01\x01" + b"\0" * 20)  # 32-bit
+        with self.assertRaises(ValueError):
+            packer.validate_busybox(b"not an elf")
+
+
+class MakeInitramfsTests(unittest.TestCase):
+    """The embedded-initramfs helper must emit a valid raw cpio for the kernel."""
+
+    def test_builds_raw_cpio_from_the_checked_in_aarch64_busybox(self):
+        import make_initramfs
+        project = builder.PROJECT
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            script = root / "init.sh"
+            script.write_bytes(b"#!/bin/busybox sh\necho embedded\n")
+            out = root / "k1-initramfs.cpio"
+            report = make_initramfs.build_initramfs_cpio(
+                project / "ci/fixtures/busybox-aarch64", script, out)
+            self.assertTrue(out.is_file())
+            self.assertEqual(report["entries"], [".", "bin", "bin/busybox", "init"])
+            self.assertEqual(report["busybox_elf_machine"], "aarch64")
+            raw = out.read_bytes()
+            self.assertTrue(raw.startswith(b"070701"))
+            parsed = packer.parse_initramfs(raw)
+            self.assertEqual(parsed["init"][0], script.read_bytes())
+            self.assertTrue(parsed["bin/busybox"][0].startswith(b"\x7fELF"))
+
+    def test_rejects_host_arch_busybox(self):
+        import make_initramfs
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            script = root / "init.sh"
+            script.write_bytes(b"#!/bin/busybox sh\n")
+            x86 = root / "busybox-x86"
+            x86.write_bytes(fake_elf(0x3E))
+            with self.assertRaises(ValueError):
+                make_initramfs.build_initramfs_cpio(x86, script, root / "out.cpio")
 
 
 class ComposeTests(unittest.TestCase):
@@ -88,7 +147,7 @@ class ComposeTests(unittest.TestCase):
         dtb = root / "b2n.dtb"
         dtb.write_bytes(fdt_blob())
         busybox = root / "busybox"
-        busybox.write_bytes(b"\x7fELF" + b"\0" * 60)
+        busybox.write_bytes(fake_elf())
         script = root / "init.sh"
         script.write_bytes(b"#!/bin/busybox sh\nreboot -f\n")
         return {"image_gz": image_gz, "dtb": dtb, "busybox": busybox, "script": script}
@@ -134,6 +193,16 @@ class ComposeTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 packer.build_boot_image(paths["image_gz"], paths["dtb"], paths["busybox"],
                                         paths["script"], "x", out, report, max_bytes=4096)
+
+    def test_compose_rejects_host_arch_busybox(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            paths = self.fixtures(root)
+            paths["busybox"].write_bytes(fake_elf(0x3E))  # x86-64
+            with self.assertRaises(ValueError):
+                packer.build_boot_image(
+                    paths["image_gz"], paths["dtb"], paths["busybox"], paths["script"],
+                    "x", root / "boot.img", root / "report.json")
 
     def test_cli_matches_library(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -207,10 +276,31 @@ class BootTargetContractTests(unittest.TestCase):
         self.assertIn("dmesg > \"$SERIAL\"", self.script)
         self.assertIn("/dev/pmsg0", self.script)
 
-    def test_workflow_offers_boot_target_and_busybox(self):
+    def test_boot_target_embeds_aarch64_initramfs(self):
+        # The initramfs must not depend on the bootloader forwarding the
+        # boot-image ramdisk field, and must use the aarch64 busybox fixture.
+        self.assertEqual(self.target["embed_initramfs"], "ci/fixtures/k1-initramfs.cpio")
+        self.assertEqual(self.target["boot_image"]["busybox"], "ci/fixtures/busybox-aarch64")
+        fixture = builder.PROJECT / self.target["boot_image"]["busybox"]
+        self.assertTrue(fixture.is_file())
+        packer.validate_busybox(fixture.read_bytes())
+        labels = [step["label"] for step in builder.build_plan(self.target, "OUT", 2, "ARTIFACTS")]
+        self.assertIn("embed-initramfs", labels)
+        embed = next(step for step in builder.build_plan(self.target, "OUT", 2, "ARTIFACTS")
+                     if step["label"] == "embed-initramfs")
+        self.assertIn("INITRAMFS_SOURCE", embed["command"])
+        self.assertLess(labels.index("embed-initramfs"), labels.index("resolve-config"))
+        self.assertLess(labels.index("resolve-config"), labels.index("compile-kernel"))
+        package = next(step for step in builder.build_plan(self.target, "OUT", 2, "ARTIFACTS")
+                       if step["label"] == "package-boot-image")
+        self.assertIn("busybox-aarch64", " ".join(package["command"]))
+
+    def test_workflow_offers_boot_target_and_aarch64_busybox(self):
         source = (builder.PROJECT / ".github/workflows/kernel-build.yml").read_text()
         self.assertIn("oh66-b2n-boot", source)
-        self.assertIn("busybox-static", source)
+        self.assertNotIn("busybox-static", source)
+        self.assertIn("ci/fixtures/busybox-aarch64", source)
+        self.assertIn("ci/make_initramfs.py", source)
 
 
 if __name__ == "__main__":

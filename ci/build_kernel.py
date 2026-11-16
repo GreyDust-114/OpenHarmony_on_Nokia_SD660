@@ -90,8 +90,12 @@ def load_targets() -> dict:
             relative_path(boot_image["output"])
             if not re.fullmatch(r"[A-Za-z0-9_.-]+\.img", Path(boot_image["output"]).name):
                 raise ValueError("boot_image output must be a plain .img file name")
-            if not re.fullmatch(r"/[A-Za-z0-9_./-]+", boot_image["busybox"]):
-                raise ValueError("boot_image busybox path must be absolute")
+            # busybox may be an absolute runner path or a repo-relative fixture.
+            if boot_image["busybox"].startswith("/"):
+                if not re.fullmatch(r"/[A-Za-z0-9_./-]+", boot_image["busybox"]):
+                    raise ValueError("boot_image busybox path is invalid")
+            else:
+                relative_path(boot_image["busybox"])
             if not target["image_target"].endswith(".gz"):
                 raise ValueError("boot_image requires a gzip kernel image target")
             cmdline = boot_image["cmdline"]
@@ -106,6 +110,11 @@ def load_targets() -> dict:
                 raise ValueError("boot_image page_size must be 2048 or 4096")
             if not 1024 * 1024 <= boot_image["max_bytes"] <= 512 * 1024**2:
                 raise ValueError("boot_image max_bytes is out of range")
+        embed_initramfs = target.get("embed_initramfs")
+        if embed_initramfs is not None:
+            if not isinstance(embed_initramfs, str) or not embed_initramfs.endswith(".cpio"):
+                raise ValueError("embed_initramfs must be a repo-relative .cpio path")
+            relative_path(embed_initramfs)
         if target["toolchain"] not in ("legacy-clang14-gnu-binutils", "llvm14"):
             raise ValueError("Unknown toolchain")
         if not isinstance(target.get("keep_going_on_compile_error", False), bool):
@@ -151,6 +160,12 @@ def build_plan(target: dict, output: str, jobs: int, artifacts: str | None = Non
     for symbol in target.get("disable_symbols", []):
         steps.append({"label": "disable-" + symbol.lower(), "command": ["bash", "scripts/config", "--file",
                       str(Path(output) / ".config"), "--disable", symbol]})
+    if target.get("embed_initramfs"):
+        # Embedding the bring-up initramfs makes /init independent of whether
+        # the bootloader forwards the ramdisk field to the kernel.
+        steps.append({"label": "embed-initramfs", "command": [
+            "bash", "scripts/config", "--file", str(Path(output) / ".config"),
+            "--set-str", "INITRAMFS_SOURCE", str(PROJECT / target["embed_initramfs"])]})
     steps.append({"label": "resolve-config", "command": base + ["olddefconfig"]})
     if target.get("dtb_targets"):
         steps.append({"label": "compile-device-trees", "command": base + [f"-j{jobs}", *target["dtb_targets"]]})
@@ -164,11 +179,14 @@ def build_plan(target: dict, output: str, jobs: int, artifacts: str | None = Non
     steps.append({"label": "compile-kernel", "command": base + compile_flags + [target["image_target"]]})
     if target.get("boot_image") and artifacts is not None:
         spec = target["boot_image"]
+        busybox = spec["busybox"]
+        if not busybox.startswith("/"):
+            busybox = str(PROJECT / busybox)
         steps.append({"label": "package-boot-image", "command": [
             "python3", "-B", str(PROJECT / "ci/boot_image.py"),
             "--image-gz", str(Path(output) / "arch/arm64/boot" / target["image_target"]),
             "--dtb", str(Path(output) / "arch/arm64/boot/dts" / spec["dtb"]),
-            "--busybox", spec["busybox"],
+            "--busybox", busybox,
             "--init-script", str(PROJECT / spec["init_script"]),
             "--cmdline", spec["cmdline"],
             "--out", str(Path(artifacts) / spec["output"]),
@@ -375,6 +393,16 @@ def execute(name: str, target: dict, work: Path, jobs: int) -> None:
         for fragment in target["fragments"]:
             if not (source / "arch/arm64/configs" / fragment).is_file():
                 raise FileNotFoundError(f"Missing fragment: {fragment}")
+        embedded = None
+        if target.get("embed_initramfs"):
+            embedded = PROJECT / target["embed_initramfs"]
+            if not embedded.is_file() or embedded.stat().st_size == 0:
+                raise FileNotFoundError(
+                    "Missing embedded initramfs cpio; run ci/make_initramfs.py before the build: "
+                    + str(embedded))
+            provenance["embedded_initramfs"] = {
+                "path": target["embed_initramfs"], "bytes": embedded.stat().st_size,
+                "sha256": sha256(embedded)}
         for step in plan:
             run(step["command"], step["label"])
             if step["label"] == "compile-device-trees":
@@ -383,7 +411,10 @@ def execute(name: str, target: dict, work: Path, jobs: int) -> None:
                 (artifacts / "device-tree-validation.json").write_text(
                     json.dumps(provenance["device_trees"], indent=2) + "\n", encoding="utf-8")
             if step["label"] == "resolve-config":
-                check_required_config((output / ".config").read_text(), target["required_symbols"],
+                required = list(target["required_symbols"])
+                if embedded is not None:
+                    required.append(f'CONFIG_INITRAMFS_SOURCE="{embedded}"')
+                check_required_config((output / ".config").read_text(), required,
                                       target.get("required_disabled_symbols", []))
         if target.get("boot_image"):
             spec = target["boot_image"]
