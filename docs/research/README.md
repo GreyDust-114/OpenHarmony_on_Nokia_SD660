@@ -6,9 +6,10 @@
 
 约束：手机仍保存个人数据并承担短信接收/转发，禁止修改或中断现有系统。第三轮经用户授权使用现有su只读；第四轮未再操作手机。没有刷机、重启、切槽或部署实验驱动。
 
-**最新验证结果：[B2N 显示供电构建审查](oh66-b2n-power-build-review.md)。** 云CI已编译并通过二进制契约：B2N DTB（PM660 L11面板1.8V与NT50356偏压节点）、panel与bias对象、显示/供电驱动链接、有效ARM64 `Image.gz`；仍是编译级产物，没有上机运行。后续工作清单仍见[minimal-port-plan.md](minimal-port-plan.md)。
+**最新验证结果：[B2N 显示供电构建审查](oh66-b2n-power-build-review.md)。** 云CI已编译并通过二进制契约：B2N DTB（PM660 L11面板1.8V与NT50356偏压节点）、panel与bias对象、显示/供电驱动链接、有效ARM64 `Image.gz`；仍是编译级产物，没有上机运行。后续工作清单仍见[移植总路线](port-roadmap.md)（旧的[minimal-port-plan.md](minimal-port-plan.md)保留为第四轮历史清单）。
 
 - 两条主候选：旧4.4 + OH/Halium/libhybris；OH6.6 + 上游SD660驱动 + B2N适配。
+- 路线已收敛：**OH 7.0 Linux 标准系统 + B2N 6.6 内核 + 用户态 DRM VDI**为主，Oniro hybris 降为后备；理由与阶段门槛见[移植总路线](port-roadmap.md)。
 - 已产出[FT8716评审草案](drafts/README.md)与B2N板级/显示/供电补丁，均已通过云CI编译与链接；未在手机运行。
 - 已有面板包级审查和HAL第一层依赖图；尚未证明显示驱动在B2N上实际出图、HAL或OH桌面可运行。
 - 主机已登记WSL2，C盘空间不足以直接规划全量OH；现已转为[GitHub Actions单内核云编译](../cloud-build.md)。已推送最小CI文件并成功完成首次Nokia 4.4云构建；本机只检查小产物，没有安装或清理构建环境。
@@ -28,6 +29,7 @@
 11. [B2N显示内建链接审查](oh66-b2n-display-build-review.md)：MSM/MDP5/DSI/14nm PHY/panel全部内建，System.map三个显示符号通过（#14）。
 12. [B2N面板硬件适配](b2n-panel-hardware-adaptation.md)：原厂120/2包命令流、timing、GPIO53 reset与传输实现（#15）。
 13. [B2N显示供电与偏压](oh66-display-power.md)：PM660 L11面板1.8V、NT50356 GPIO时序；#16布局失败与修复、#17构建结果见[供电构建审查](oh66-b2n-power-build-review.md)。
+14. [移植总路线与下一步](port-roadmap.md)：目标拆成K1/K2/U1/U2/U3真机里程碑；主路线收敛为 OH 7.0 Linux 标准系统 + B2N 6.6 内核 + 用户态 DRM VDI，Oniro hybris 降为后备；含阶段计划、风险与待授权事项。
 
 后轮会修正/细化前轮结论，前轮的权限与证据范围仅描述当时状态。
 
