@@ -101,8 +101,8 @@
       "dtb_targets": ["qcom/sdm660-nokia-b2n.dtb", "qcom/sdm660-xiaomi-lavender.dtb"],
       "dtb_profiles": {"qcom/sdm660-nokia-b2n.dtb": "b2n-touch"},
       "keep_going_on_compile_error": true,
-      "disable_symbols": ["KSM", "SCSI_UFS_EXYNOS"],
-      "required_disabled_symbols": ["# CONFIG_KSM is not set", "# CONFIG_SCSI_UFS_EXYNOS is not set"],
+      "disable_symbols": ["KSM", "SCSI_UFS_EXYNOS", "DRM_MSM_DPU"],
+      "required_disabled_symbols": ["# CONFIG_KSM is not set", "# CONFIG_SCSI_UFS_EXYNOS is not set", "# CONFIG_DRM_MSM_DPU is not set"],
       "source_dependencies": [
         {
           "name": "oh-common-modules",

@@ -75,6 +75,14 @@ System.map 必须包含 panel、MSM、DSI 三个驱动的定义符号，并保�
 `linked-display-validation.json`。该轮保留 #12 panel 的命令及 mode 内容，
 只验证链接接入，不将参考板参数宣称为已完成的 B2N 显示适配。
 
+验证任务：[Actions #13](https://github.com/GreyDust-114/OpenHarmony_on_Nokia_SD660/actions/runs/43738565216)，
+提交 `afbc086584a5ece1c36b54b1eca1d840650967aa`，jobs=2。#13 已通过DTB、配置和panel对象编译，
+但完整Image构建因不相关的`DRM_MSM_DPU=y`进入与头文件不一致的DPU writeback代码而失败。
+B2N使用MDP5，不需要DPU；下一修复仅禁用`DRM_MSM_DPU`并保留对应验收。
+
+本地31项CI测试为30通过、1项GCC跳过，35项研究测试通过；还从Git
+staged tree导出了LF版本并重新运行全部CI测试，确保hash与runner一致。
+
 1. 增加专用 panel Kconfig/Makefile，并验证实际链接产物。
 2. 将 MSM 显示依赖配置和产物验收补齐。
 3. 将参考板初始化序列替换为保存的 B2N 原厂序列；显式保留 packet type、payload、LP/HS 和 delay，特别是两字节 0x39 长写。

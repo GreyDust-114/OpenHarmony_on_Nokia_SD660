@@ -51,6 +51,8 @@ class DisplayLinkTests(unittest.TestCase):
             self.assertIn("CONFIG_" + name + "=y", target["required_symbols"])
         for name in ("QCOM_OCMEM", "QCOM_LLCC"):
             self.assertIn(name, target["enable_symbols"])
+        self.assertIn("DRM_MSM_DPU", target["disable_symbols"])
+        self.assertIn("# CONFIG_DRM_MSM_DPU is not set", target["required_disabled_symbols"])
         for name in ("nokia44-baseline", "oh66-ft8716"):
             self.assertNotIn("required_link_symbols", builder.load_targets()[name])
 
