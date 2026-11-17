@@ -263,3 +263,26 @@ boot，USB 串口 150 秒内仍未出现，面板也再次花屏；说明**仅�
    - 若外部 init 不生效：把 2024-12 的 SDM630/660 USB 补丁系列 backport 进内核，或在 CI
      里加调试 printk（把 dwc3/PHY probe 结果写进 pmsg，再用可靠 reader 读）。
    - 硬件 UART（主板测试点）是终极日志通道，值得调研。
+
+### 外部 initramfs 覆盖验证成功（2026-11-17 16:45）
+
+用 run-25 内核 boot 一个"外部 init 只 sleep 60 秒后重启"的镜像，设备 **106 秒**
+回到 Android（内置 init 的 300 秒超时对应 ~330 秒）。这证明：
+
+- bootloader 会传递我们打包的 ramdisk，内核把外部 initramfs 覆盖在内置 initramfs 之上；
+- 从此**不需要 CI** 就能在真机上迭代 init 脚本、DTB、乃至任何用户态实验，单次循环约 3 分钟。
+
+同一机制也给出一个"穷人的控制台"：让外部 init 根据探测到的内核状态（UDC 是否存在、
+dwc3/PHY/core 是否绑定、dmesg 关键字等）选择不同的 sleep 时长，通过设备重新出现的
+时间来反推状态。首轮标定（ABL 重启到 fastboot 可见约 10–15 秒）下已经能区分
+"UDC 不存在（~111 秒）"；但多 bit 探测受 fastboot/Android 落点和 USB 枚举时延影响，
+R1/R2 的解读出现矛盾，需要改用**仅以 adb 出现为准 + 同会话已知 sleep 标定 + 重复采样**
+的更稳实现，或寻找设备端可观测通道（LED/振动/背光）作为真正的低带宽控制台。
+
+### 本轮其他结论
+
+- 面板 dmesg 彻底不可用（quad 镜像 + 外部 init + 4 buffer 镜像仍无文字），K1 日志必须走
+  USB 或其它通道；显示留给 K2 的 msm DRM/DSI。
+- 已修复并上机的两个 USB DT 问题（rpm bus clock 移入 ICC 时钟表、qusb2 PHY 缺 supply）
+  仍未能让 UDC/串口出现，下一步用稳定的 dmesg 计时探测或硬件 UART 继续定位。
+- 硬件 UART（主板测试点）仍然是最值得的终极日志通道。
