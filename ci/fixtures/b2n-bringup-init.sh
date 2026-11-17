@@ -9,6 +9,14 @@
 # Log strategy: repeat dmesg dumps until the host attaches and pstore records
 # are replayed first, because the USB driver may enumerate a few seconds after
 # the first dump and a panic can truncate the session at any time.
+#
+# Debian/Ubuntu busybox-static is not a standalone shell: without /bin/<applet>
+# symlinks every command would fail with 127, PID1 would exit and the kernel
+# would panic with "Attempted to kill init". Install the applet links first,
+# then keep PID1 alive even if a later step fails.
+/bin/busybox --install -s /bin
+trap '/bin/busybox sleep 2147483647' EXIT
+echo "b2n: init started (busybox applet links installed)" > /dev/kmsg 2>/dev/null
 export PATH=/bin
 BRINGUP_TIMEOUT=${BRINGUP_TIMEOUT:-300}
 
@@ -93,4 +101,6 @@ while [ "$seconds" -lt "$BRINGUP_TIMEOUT" ]; do
 	fi
 done
 log "b2n: timeout reached, rebooting to the normal Android boot"
-reboot -f
+reboot -f 2>/dev/null
+# Never let PID1 exit even if the reboot applet is unavailable.
+/bin/busybox sleep 2147483647

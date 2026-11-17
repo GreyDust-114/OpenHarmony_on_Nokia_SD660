@@ -295,6 +295,18 @@ class BootTargetContractTests(unittest.TestCase):
                        if step["label"] == "package-boot-image")
         self.assertIn("busybox-aarch64", " ".join(package["command"]))
 
+    def test_init_script_installs_busybox_applets_and_keeps_pid1_alive(self):
+        # Debian/Ubuntu busybox-static is not a standalone shell: without
+        # /bin/<applet> symlinks every command fails with 127, PID1 exits and
+        # the kernel panics "Attempted to kill init" instead of leaving the
+        # bring-up log. The script must install the links first and keep PID1
+        # alive as a fallback.
+        self.assertIn("/bin/busybox --install -s /bin", self.script)
+        self.assertIn("trap '/bin/busybox sleep", self.script)
+        self.assertIn("/bin/busybox sleep 2147483647", self.script)
+        self.assertLess(self.script.index("--install -s /bin"),
+                        self.script.index("export PATH=/bin"))
+
     def test_workflow_offers_boot_target_and_aarch64_busybox(self):
         source = (builder.PROJECT / ".github/workflows/kernel-build.yml").read_text()
         self.assertIn("oh66-b2n-boot", source)
