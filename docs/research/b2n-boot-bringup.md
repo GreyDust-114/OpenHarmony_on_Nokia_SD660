@@ -240,3 +240,26 @@ boot，USB 串口 150 秒内仍未出现，面板也再次花屏；说明**仅�
 让 dwc3/UDC 出现。下一步需要先确认 dwc3 probe 的具体阻塞点（icc core 是否接受跨 provider
 路径、PHY/regulator 是否 defer、还是 gadget 创建失败），并优先尝试 ABL 的内存 dump 命令，
 或把 2024-12 的 SDM630/660 USB 上游补丁系列作为 support patch backport。
+
+### P3 进展（2026-11-17 16:20–16:40）
+
+1. **纠正之前的判断**：`of_icc_get()` 在 DT 没有 `interconnects` 属性时返回 NULL
+   （不是错误），`dwc3-qcom` 的 `IS_ERR` 检查会跳过 → "缺 ICC 导致 probe 失败" 不成立。
+2. **找到两个真实的 DT/内核不匹配（本地修复并已上机）**：
+   - usb3 节点的第 6 个时钟 `"bus" = <&rpmcc RPM_SMD_AGGR2_NOC_CLK>` 在 pinned
+     6.6.101 中已从普通时钟表移入 ICC 时钟表（`sdm660_icc_clks`），rpmcc provider
+     不再暴露该 ID → `clk_get` 失败 → `dwc3-qcom` probe 报错 → 无 UDC。上游 2024 提交
+     "dt-bindings: usb: qcom,dwc3: Fix SDM660 clock description" 正是删除这个 clock。
+   - `qusb2phy0` 缺 `vdd` / `vdda-pll` / `vdda-phy-dpdm` 三路 supply（PM660 regulators 未定义），
+     PHY probe 会失败 → dwc3 子设备 defer。本地用 always-on `regulator-fixed` 顶替。
+   - 修复镜像 boot 后串口仍未出现，说明还有其它阻塞点（UDC 是否出现、PHY 是否 probe、
+     gadget 是否创建），需要日志才能继续。
+3. 面板 dmesg 仍不可用（ABL 扫描 buffer 每次不同，今天多次复现花屏）。
+4. 下一步（优先免 CI 迭代）：
+   - 用"外部 initramfs 覆盖"做**时长判定实验**：已知镜像稳定在 ~300 秒后重启；若换成
+     外部 init（60 秒超时）后重启时间变成 ~60 秒，即证明外部 initramfs 生效。之后就可以
+     把带 `fb0→fb1..3` 镜像逻辑的 init 作为外部 init 加载到 run-25 内核（面板通道、pstore
+     reader 均可本地迭代，不用等 CI）。
+   - 若外部 init 不生效：把 2024-12 的 SDM630/660 USB 补丁系列 backport 进内核，或在 CI
+     里加调试 printk（把 dwc3/PHY probe 结果写进 pmsg，再用可靠 reader 读）。
+   - 硬件 UART（主板测试点）是终极日志通道，值得调研。
