@@ -101,7 +101,7 @@
 |---|---|---|
 | P0-1 boot 打包器 ✅ | `ci/build_boot_image.py`（boot v0 header、`Image.gz`+B2N DTB、initramfs cpio、cmdline、结构自检） | 已完成：#18 成功打包 15,200,256 bytes 的研究启动镜像，header/地址与真机 415I boot 一致，107 entries 产物 SHA256 校验通过 |
 | P0-2 内核启动补全 ✅ | B2N DTS 增加 bootloader 选择属性、ramoops、USB gadget；新增 `oh66-b2n-boot` CI 目标（RPM/GLINK、时钟/GDSC、pstore、fbcon 等配置） | 已完成：#18 配置 33 项验收通过、4 个驱动符号仍链接、编译 0 error/17 warning；详见[K1 准备](b2n-boot-bringup.md) |
-| P0-3 真机 K1 | 用研究启动镜像做 `fastboot boot`（RAM only），串口/面板/pstore 取日志 | 完整 dmesg 到 init、eMMC 未写入、可回 Android；**下一步执行** |
+| P0-3 真机 K1 | 用研究启动镜像做 `fastboot boot`（RAM only），串口/面板/pstore 取日志 | **用户态已到达**：修复 initramfs（aarch64 busybox/applet/PID1）后，屏蔽 `sdm660_pinctrl_init` 可让 B2N 完整执行 initramfs（+311 秒超时重启）；面板 simplefb 控制台参数已打通（0x9d400000/stride 4320/32bpp）。默认配置仍有 pinctrl 相关早期 panic，待取 panic 文本后修复 |
 | P0-4 OH 基线锁定 | 把内核 pin 迁到 OH 7.0-Release 的 `kernel_linux_6.6`，重放 B2N 补丁，记录 commit SHA；CI 继续通过 | 补丁全部 apply、DTB 契约与 #17/#18 等价 |
 | P0-5 构建资源 spike | `qemu_arm64_linux_full` 的 repo 清单、磁盘/内存/时间实测或估算；本机 WSL2 虚拟盘扩容与外置盘挂载方案 | 形成明确预算与操作方案；先不下载/构建 180GB |
 

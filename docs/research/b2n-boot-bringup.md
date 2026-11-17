@@ -141,3 +141,34 @@ runner 为 x86-64，`apt-get install busybox-static` 装的是主机架构包）
 - K1 通过后进入 K2：面板显示（fbcon/最小 DRM 测试图）与触摸 evdev；失败项按 dmesg 迭代。
 - 并行推进 P0-4（内核 pin 迁到 OH 7.0-Release 的 `kernel_linux_6.6`）与 P0-5（WSL+外置盘容量方案）。
 - 真机实验仍遵守[移植总路线](port-roadmap.md) §7 红线与 §8 授权边界。
+
+## 第二轮真机结果（2026-11-17）
+
+修复 initramfs（aarch64 busybox + applet 符号链接 + PID1 保活）后，默认镜像仍在
+约 43–57 秒复位，说明还存在设备侧早期 panic。用 run #25 内核重做 initcall 黑名单二分
+（此前所有黑名单实验都因 initramfs 坏而无效）：
+
+| 变体 | 结果 |
+|---|---|
+| 默认配置（run #25 镜像） | panic（约 43–57 秒回 Android） |
+| 黑名单组1（显示/USB/时钟/RPM/ICC/SMMU/PINCTRL 共 17 项） | 不再复位 |
+| e-no-usb（组1 去掉 USB 两项） | 用户态 OK：boot 后 **+311 秒**自动重启（= initramfs 的 300 秒超时）→ `/init` 确实运行 |
+| a-display 单独 / c-clk-rpm-smem 单独 / d1 interconnect 对 / d5 smmu 单独 | 仍 panic |
+| d2（smmu+pinctrl）或 d6（仅 pinctrl） | 用户态 OK（+312 秒超时重启） |
+
+**结论**：默认配置下，`sdm660_pinctrl_init`（SDM660 TLMM pinctrl，arch_initcall）
+是设备早期 panic 的直接触发点；屏蔽它后 B2N 可以完整进入用户态并执行 initramfs 脚本。
+内存大小、KASLR、SMP、显示/USB/时钟/RPM/ICC/SMMU 都不是该 panic 的必要条件。
+
+同时验证了面板控制台通道：simplefb + splash 区 `no-map` 保留可用，实际参数为
+**base 0x9d400000、stride 4320、1080x2160、32bpp a8r8g8b8**（TWRP 报告的 stride 4352
+是它自己 fbdev 的 stride；用 4352 会得到满屏竖条纹）。在"pinctrl 黑名单 + 用户态"
+镜像上，init 把 dmesg 打到 `/dev/tty0` 后屏幕可读到内核日志（本地证据有照片）。
+
+### 尚未解决
+
+- 把 pinctrl 驱动注册改到 `late_initcall`（run #27 调试补丁）后设备挂住且黑屏、
+  用户态未运行：panic/挂起发生在 late_initcall 之前，面板控制台来不及接管。
+- 下一步：一次 CI 构建修改 bring-up initramfs，**优先回放 `/sys/fs/pstore` 并保持显示
+  90 秒**，用它在下次启动读取 run #27 / 默认配置的 panic 记录；拿到 panic 文本后修复
+  pinctrl 触发点（DT 属性或驱动 patch），再以默认配置完成 K1（用户态 + 日志通道）。

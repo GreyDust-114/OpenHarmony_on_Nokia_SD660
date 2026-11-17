@@ -169,6 +169,19 @@ virt/kvm/coalesced_mmio.c:190:4: error: implicit declaration of function 'kvm_io
   `Failed to execute /init (error -8)` → `Kernel panic - not syncing: No working init found.`；
   换用 aarch64 busybox 后 QEMU 正常到达用户态。详见
   [启动镜像与 K1 准备](b2n-boot-bringup.md)。
+- [任务 #25](https://github.com/GreyDust-114/OpenHarmony_on_Nokia_SD660/actions/runs/43989379229)：
+  提交 `ec421d3`，成功。第二层修复：Debian busybox-static 的 ash 不是 standalone shell，
+  initramfs 缺少 `/bin/<applet>` 符号链接导致 init 脚本所有命令 127、PID1 退出 panic；
+  init 开头改为 `busybox --install -s /bin` 并加 EXIT trap/PID1 保活。run #25 内核上真机
+  仍默认配置 panic，但用黑名单二分定位到 `sdm660_pinctrl_init`；屏蔽后用户态可运行
+  （+311 秒超时重启），面板 simplefb 控制台（0x9d400000/stride 4320/32bpp）可显示 dmesg。
+- [任务 #26](https://github.com/GreyDust-114/OpenHarmony_on_Nokia_SD660/actions/runs/44004148044)：
+  调试补丁（pinctrl 改 late_initcall）生成器把多行注释当成单行，补丁无法 apply，构建失败；
+  修正后见 #27。
+- [任务 #27](https://github.com/GreyDust-114/OpenHarmony_on_Nokia_SD660/actions/runs/44005379732)：
+  提交 `7b272a7`，成功。pinctrl late_initcall 调试内核真机上仍挂住且黑屏（panic 早于
+  late_initcall），需借助 pstore 回放读取 panic 文本；下一步一次 CI 构建修改 bring-up init
+  为"优先回放 pstore 并保持显示 90 秒"。
 
 ## 来源
 
