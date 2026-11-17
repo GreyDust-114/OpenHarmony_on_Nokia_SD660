@@ -172,3 +172,20 @@ runner 为 x86-64，`apt-get install busybox-static` 装的是主机架构包）
 - 下一步：一次 CI 构建修改 bring-up initramfs，**优先回放 `/sys/fs/pstore` 并保持显示
   90 秒**，用它在下次启动读取 run #27 / 默认配置的 panic 记录；拿到 panic 文本后修复
   pinctrl 触发点（DT 属性或驱动 patch），再以默认配置完成 K1（用户态 + 日志通道）。
+
+### 第三轮尝试（reader/pstore 通道，#28–#30，负结果）
+
+- #28：init 改成 pstore reader 模式（回放记录并保持 90 秒后再做 live dmesg），构建成功；
+  但 ABL 每次启动扫描的 splash buffer 不稳定（相同 DTB 参数有时能显示、有时仍停在
+  Android One 开屏+条纹），无法稳定拍照。
+- #29：init 增加 gadget 重试（dwc3 可能异步 probe），并把 pstore 记录同时写串口；
+  实际 USB 仍不枚举。分析发现 `dwc3-qcom` probe 强制要求 `usb-ddr`/`apps-usb` 两条
+  interconnect 路径，而本内核版本的 sdm630.dtsi usb3 节点没有 `interconnects`；
+  本地 DTB 补上后仍无 UDC（还有其他依赖，需继续排查）。
+- #30：DTB 放 4 个 simple-framebuffer 节点（对应 splash 区 4 个候选 buffer），init 把
+  fb0 镜像到 fb1..fb3，期望 ABL 扫描任意 buffer 都能显示；实测仍无文字，且设备没有按
+  init 超时重启——怀疑 #27 引入的“pinctrl late_initcall”调试补丁使
+  `initcall_blacklist=sdm660_pinctrl_init` 路径失效（#25 无该补丁时用户态可运行）。
+- 该调试补丁已从各目标回退（补丁文件保留在 drafts 备查）。
+- 下一轮（#31）：用**无调试补丁**的内核重新构建，并用本地 quad/ICC DTB 验证 reader
+  路径；串口不可用时继续以面板 + pstore 为主，同时排查 dwc3 probe 的其余依赖。

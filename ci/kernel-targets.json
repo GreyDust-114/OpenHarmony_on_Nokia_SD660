@@ -41,10 +41,6 @@
           "path": "docs/research/drafts/oh66-xpm-mmflags-guard-review.patch",
           "origin": "https://github.com/eclipse-oniro-mirrors/kernel_linux_6.6/blob/31c8f21f4c95d59c8e730038b868109e9244a936/include/trace/events/mmflags.h",
           "sha256": "18cf10ee6c0e12d567bcd4f63cc439bce12dd77dd561531d969f430e11e758b3"
-        },
-        {
-          "path": "docs/research/drafts/oh66-pinctrl-late-init-review.patch",
-          "sha256": "dee08314b12441f491f53a0b0ca226e88e25e924854161487209ac8256ff1480"
         }
       ],
       "keep_going_on_compile_error": true,
@@ -124,10 +120,6 @@
           "path": "docs/research/drafts/oh66-xpm-mmflags-guard-review.patch",
           "origin": "https://github.com/eclipse-oniro-mirrors/kernel_linux_6.6/blob/31c8f21f4c95d59c8e730038b868109e9244a936/include/trace/events/mmflags.h",
           "sha256": "18cf10ee6c0e12d567bcd4f63cc439bce12dd77dd561531d969f430e11e758b3"
-        },
-        {
-          "path": "docs/research/drafts/oh66-pinctrl-late-init-review.patch",
-          "sha256": "dee08314b12441f491f53a0b0ca226e88e25e924854161487209ac8256ff1480"
         }
       ],
       "board_patch": {
@@ -269,10 +261,6 @@
           "path": "docs/research/drafts/oh66-xpm-mmflags-guard-review.patch",
           "origin": "https://github.com/eclipse-oniro-mirrors/kernel_linux_6.6/blob/31c8f21f4c95d59c8e730038b868109e9244a936/include/trace/events/mmflags.h",
           "sha256": "18cf10ee6c0e12d567bcd4f63cc439bce12dd77dd561531d969f430e11e758b3"
-        },
-        {
-          "path": "docs/research/drafts/oh66-pinctrl-late-init-review.patch",
-          "sha256": "dee08314b12441f491f53a0b0ca226e88e25e924854161487209ac8256ff1480"
         }
       ],
       "board_patch": {
