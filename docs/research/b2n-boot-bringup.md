@@ -232,3 +232,11 @@ runner 为 x86-64，`apt-get install busybox-static` 装的是主机架构包）
    2024-12 的 USB 补丁系列。
 4. **P4**：面板显示不稳定是 ABL 每次扫描 buffer/stride 不同的硬件行为（同一镜像有时可读、
    有时花屏，今天再次复现）；K1 日志以 USB 为主，面板显示留给 K2 的 msm DRM/DSI。
+
+### P1 结果（2026-11-17 16:10）
+
+用 run-25 内核 + 本地单帧面板 DTB + usb3 `interconnects`（路径按 sdm660 icc 驱动图补）
+boot，USB 串口 150 秒内仍未出现，面板也再次花屏；说明**仅补 interconnect 属性不足以**
+让 dwc3/UDC 出现。下一步需要先确认 dwc3 probe 的具体阻塞点（icc core 是否接受跨 provider
+路径、PHY/regulator 是否 defer、还是 gadget 创建失败），并优先尝试 ABL 的内存 dump 命令，
+或把 2024-12 的 SDM630/660 USB 上游补丁系列作为 support patch backport。
