@@ -44,7 +44,7 @@
         },
         {
           "path": "docs/research/drafts/oh66-pinctrl-late-init-review.patch",
-          "sha256": "bc8364ad20469f5d9edf0e8d7b0d89f791c39c14b209753363fa5a9beee076b2"
+          "sha256": "dee08314b12441f491f53a0b0ca226e88e25e924854161487209ac8256ff1480"
         }
       ],
       "keep_going_on_compile_error": true,
@@ -127,7 +127,7 @@
         },
         {
           "path": "docs/research/drafts/oh66-pinctrl-late-init-review.patch",
-          "sha256": "bc8364ad20469f5d9edf0e8d7b0d89f791c39c14b209753363fa5a9beee076b2"
+          "sha256": "dee08314b12441f491f53a0b0ca226e88e25e924854161487209ac8256ff1480"
         }
       ],
       "board_patch": {
@@ -272,7 +272,7 @@
         },
         {
           "path": "docs/research/drafts/oh66-pinctrl-late-init-review.patch",
-          "sha256": "bc8364ad20469f5d9edf0e8d7b0d89f791c39c14b209753363fa5a9beee076b2"
+          "sha256": "dee08314b12441f491f53a0b0ca226e88e25e924854161487209ac8256ff1480"
         }
       ],
       "board_patch": {
