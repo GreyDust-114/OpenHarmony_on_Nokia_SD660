@@ -276,6 +276,16 @@ class BootTargetContractTests(unittest.TestCase):
         self.assertIn("dmesg > \"$SERIAL\"", self.script)
         self.assertIn("/dev/pmsg0", self.script)
 
+    def test_init_script_retries_gadget_and_streams_pstore_to_serial(self):
+        # dwc3 may probe asynchronously; the earlier init tried the gadget only
+        # once, so the ACM serial never appeared in userspace runs. It must
+        # retry, and the recovered pstore records must go to the serial too.
+        self.assertIn('while [ "$tries" -lt 12 ]', self.script)
+        self.assertIn("setup_gadget", self.script)
+        self.assertIn('cat "$f" > "$SERIAL"', self.script)
+        self.assertLess(self.script.index("while [ \"$tries\" -lt 12 ]"),
+                        self.script.index("pstore reader mode"))
+
     def test_init_script_holds_pstore_reader_mode_for_photographing(self):
         # The panic image is booted with panic=0 and force-reset with the
         # hardware keys; the next (reader) image must keep the recovered

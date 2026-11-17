@@ -30,39 +30,6 @@ mount -t configfs none /sys/kernel/config 2>/dev/null
 
 panel() { echo "$*" > /dev/tty0 2>/dev/null; }
 
-panel "=== B2N 6.6 bring-up (research initramfs) ==="
-panel "cmdline: $(cat /proc/cmdline)"
-panel "$(uname -a)"
-
-# Replay pstore from an earlier warm boot, if the bootloader preserved it.
-#
-# Reader mode: keep the recovered records on the panel for 90 seconds before
-# any live dmesg dump, so the previous boot's panic log can be photographed.
-# The panic image is booted with panic=0 and force-reset with the hardware
-# keys, so RAM (and therefore pstore) survives until this reader image runs.
-replay_pstore() {
-	[ -d /sys/fs/pstore ] || return 0
-	found=0
-	for f in /sys/fs/pstore/*; do
-		[ -f "$f" ] || continue
-		found=1
-		panel "=== pstore: $f ==="
-		cat "$f" > /dev/tty0 2>/dev/null
-	done
-	[ "$found" = 1 ] || panel "=== pstore: (no records) ==="
-}
-mount -t pstore pstore /sys/fs/pstore 2>/dev/null
-held=0
-while [ "$held" -lt 90 ]; do
-	panel "=== pstore reader mode: ${held}s / 90s ==="
-	replay_pstore
-	sleep 10
-	held=$((held + 10))
-done
-if [ -c /dev/pmsg0 ]; then
-	echo "B2N bring-up initramfs reached userspace" > /dev/pmsg0 2>/dev/null
-fi
-
 setup_gadget() {
 	[ -d /sys/kernel/config/usb_gadget ] || return 1
 	G=/sys/kernel/config/usb_gadget/b2n
@@ -76,18 +43,76 @@ setup_gadget() {
 	mkdir -p "$G/configs/c.1/strings/0x409"
 	echo bringup > "$G/configs/c.1/strings/0x409/configuration"
 	mkdir -p "$G/functions/acm.usb0" 2>/dev/null
-	ln -s "$G/functions/acm.usb0" "$G/configs/c.1/" 2>/dev/null
+	[ -e "$G/configs/c.1/acm.usb0" ] || ln -s "$G/functions/acm.usb0" "$G/configs/c.1/" 2>/dev/null
 	UDC=$(ls /sys/class/udc 2>/dev/null | head -n1)
 	[ -n "$UDC" ] || return 1
-	echo "$UDC" > "$G/UDC" || return 1
-	sleep 2
+	if [ "$(cat "$G/UDC" 2>/dev/null)" != "$UDC" ]; then
+		echo "$UDC" > "$G/UDC" 2>/dev/null || return 1
+	fi
+	sleep 1
 	return 0
 }
 
+# dwc3 can probe asynchronously, so the UDC may appear a few seconds late.
+# Retry instead of giving up before the gadget exists (the previous init only
+# tried once, which is why the ACM serial never showed up in userspace runs).
 SERIAL=
-if setup_gadget; then
-	SERIAL=/dev/ttyGS0
+tries=0
+while [ "$tries" -lt 12 ]; do
+	if setup_gadget; then
+		SERIAL=/dev/ttyGS0
+		break
+	fi
+	sleep 5
+	tries=$((tries + 1))
+done
+if [ -n "$SERIAL" ]; then
 	( cat /dev/kmsg > "$SERIAL" 2>/dev/null ) &
+fi
+
+panel "=== B2N 6.6 bring-up (research initramfs) ==="
+panel "cmdline: $(cat /proc/cmdline)"
+panel "$(uname -a)"
+if [ -n "$SERIAL" ]; then
+	echo "=== B2N 6.6 bring-up: ACM serial attached ===" > "$SERIAL" 2>/dev/null
+	dmesg > "$SERIAL" 2>/dev/null
+fi
+
+# Replay pstore from an earlier warm boot, if the bootloader preserved it.
+#
+# Reader mode: keep the recovered records on the panel/serial for 90 seconds
+# before any live dmesg dump, so the previous boot's panic log can be
+# photographed or read over the ACM serial. The panic image is booted with
+# panic=0 and force-reset with the hardware keys, so RAM (and therefore
+# pstore) survives until this reader image runs.
+replay_pstore() {
+	[ -d /sys/fs/pstore ] || return 0
+	found=0
+	for f in /sys/fs/pstore/*; do
+		[ -f "$f" ] || continue
+		found=1
+		panel "=== pstore: $f ==="
+		cat "$f" > /dev/tty0 2>/dev/null
+		if [ -n "$SERIAL" ]; then
+			echo "=== pstore: $f ===" > "$SERIAL" 2>/dev/null
+			cat "$f" > "$SERIAL" 2>/dev/null
+		fi
+	done
+	[ "$found" = 1 ] || panel "=== pstore: (no records) ==="
+}
+mount -t pstore pstore /sys/fs/pstore 2>/dev/null
+held=0
+while [ "$held" -lt 90 ]; do
+	panel "=== pstore reader mode: ${held}s / 90s ==="
+	if [ -n "$SERIAL" ]; then
+		echo "=== pstore reader mode: ${held}s / 90s ===" > "$SERIAL" 2>/dev/null
+	fi
+	replay_pstore
+	sleep 10
+	held=$((held + 10))
+done
+if [ -c /dev/pmsg0 ]; then
+	echo "B2N bring-up initramfs reached userspace" > /dev/pmsg0 2>/dev/null
 fi
 
 log() {
