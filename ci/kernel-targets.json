@@ -19,7 +19,8 @@
         "CONFIG_TOUCHSCREEN_FTS=y"
       ],
       "patch": null,
-      "object_target": null
+      "object_target": null,
+      "support_patches": []
     },
     "oh66-ft8716": {
       "repository": "https://github.com/eclipse-oniro-mirrors/kernel_linux_6.6.git",
@@ -40,6 +41,10 @@
           "path": "docs/research/drafts/oh66-xpm-mmflags-guard-review.patch",
           "origin": "https://github.com/eclipse-oniro-mirrors/kernel_linux_6.6/blob/31c8f21f4c95d59c8e730038b868109e9244a936/include/trace/events/mmflags.h",
           "sha256": "18cf10ee6c0e12d567bcd4f63cc439bce12dd77dd561531d969f430e11e758b3"
+        },
+        {
+          "path": "docs/research/drafts/oh66-pinctrl-late-init-review.patch",
+          "sha256": "bc8364ad20469f5d9edf0e8d7b0d89f791c39c14b209753363fa5a9beee076b2"
         }
       ],
       "keep_going_on_compile_error": true,
@@ -119,6 +124,10 @@
           "path": "docs/research/drafts/oh66-xpm-mmflags-guard-review.patch",
           "origin": "https://github.com/eclipse-oniro-mirrors/kernel_linux_6.6/blob/31c8f21f4c95d59c8e730038b868109e9244a936/include/trace/events/mmflags.h",
           "sha256": "18cf10ee6c0e12d567bcd4f63cc439bce12dd77dd561531d969f430e11e758b3"
+        },
+        {
+          "path": "docs/research/drafts/oh66-pinctrl-late-init-review.patch",
+          "sha256": "bc8364ad20469f5d9edf0e8d7b0d89f791c39c14b209753363fa5a9beee076b2"
         }
       ],
       "board_patch": {
@@ -260,6 +269,10 @@
           "path": "docs/research/drafts/oh66-xpm-mmflags-guard-review.patch",
           "origin": "https://github.com/eclipse-oniro-mirrors/kernel_linux_6.6/blob/31c8f21f4c95d59c8e730038b868109e9244a936/include/trace/events/mmflags.h",
           "sha256": "18cf10ee6c0e12d567bcd4f63cc439bce12dd77dd561531d969f430e11e758b3"
+        },
+        {
+          "path": "docs/research/drafts/oh66-pinctrl-late-init-review.patch",
+          "sha256": "bc8364ad20469f5d9edf0e8d7b0d89f791c39c14b209753363fa5a9beee076b2"
         }
       ],
       "board_patch": {

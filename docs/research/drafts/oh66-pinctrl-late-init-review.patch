@@ -1,0 +1,20 @@
+--- a/drivers/pinctrl/qcom/pinctrl-sdm660.c
++++ b/drivers/pinctrl/qcom/pinctrl-sdm660.c
+@@ -1434,9 +1434,9 @@
+ static int __init sdm660_pinctrl_init(void)
+ {
+ 	return platform_driver_register(&sdm660_pinctrl_driver);
+ }
+-arch_initcall(sdm660_pinctrl_init);
++/*
+ * B2N K1 research bring-up only: the generic simple-framebuffer console is
+ * registered from the /chosen framebuffer node at device_initcall time.
+ * This driver currently crashes the B2N during probe and arch_initcall runs
+ * before that console exists, so the panic message is invisible.  Register
+ * it late so the panel console can capture the crash log.
+ */
+late_initcall(sdm660_pinctrl_init);
+ 
+ static void __exit sdm660_pinctrl_exit(void)
+ {
+ 	platform_driver_unregister(&sdm660_pinctrl_driver);
