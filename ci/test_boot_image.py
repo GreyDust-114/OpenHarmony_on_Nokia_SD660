@@ -276,6 +276,18 @@ class BootTargetContractTests(unittest.TestCase):
         self.assertIn("dmesg > \"$SERIAL\"", self.script)
         self.assertIn("/dev/pmsg0", self.script)
 
+    def test_init_script_holds_pstore_reader_mode_for_photographing(self):
+        # The panic image is booted with panic=0 and force-reset with the
+        # hardware keys; the next (reader) image must keep the recovered
+        # previous-boot console log on the panel long enough to photograph it.
+        self.assertIn("pstore reader mode", self.script)
+        self.assertIn("replay_pstore", self.script)
+        self.assertIn("held=$((held + 10))", self.script)
+        self.assertIn("\"$held\" -lt 90", self.script)
+        # Reader mode must run before the live dmesg dump overwrites the panel.
+        self.assertLess(self.script.index("pstore reader mode"),
+                        self.script.index("log \"b2n: initramfs reached userspace"))
+
     def test_boot_target_embeds_aarch64_initramfs(self):
         # The initramfs must not depend on the bootloader forwarding the
         # boot-image ramdisk field, and must use the aarch64 busybox fixture.

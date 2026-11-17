@@ -35,14 +35,30 @@ panel "cmdline: $(cat /proc/cmdline)"
 panel "$(uname -a)"
 
 # Replay pstore from an earlier warm boot, if the bootloader preserved it.
-mount -t pstore pstore /sys/fs/pstore 2>/dev/null
-if [ -d /sys/fs/pstore ]; then
+#
+# Reader mode: keep the recovered records on the panel for 90 seconds before
+# any live dmesg dump, so the previous boot's panic log can be photographed.
+# The panic image is booted with panic=0 and force-reset with the hardware
+# keys, so RAM (and therefore pstore) survives until this reader image runs.
+replay_pstore() {
+	[ -d /sys/fs/pstore ] || return 0
+	found=0
 	for f in /sys/fs/pstore/*; do
 		[ -f "$f" ] || continue
+		found=1
 		panel "=== pstore: $f ==="
 		cat "$f" > /dev/tty0 2>/dev/null
 	done
-fi
+	[ "$found" = 1 ] || panel "=== pstore: (no records) ==="
+}
+mount -t pstore pstore /sys/fs/pstore 2>/dev/null
+held=0
+while [ "$held" -lt 90 ]; do
+	panel "=== pstore reader mode: ${held}s / 90s ==="
+	replay_pstore
+	sleep 10
+	held=$((held + 10))
+done
 if [ -c /dev/pmsg0 ]; then
 	echo "B2N bring-up initramfs reached userspace" > /dev/pmsg0 2>/dev/null
 fi
