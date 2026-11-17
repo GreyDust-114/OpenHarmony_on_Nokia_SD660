@@ -100,6 +100,16 @@ replay_pstore() {
 	done
 	[ "$found" = 1 ] || panel "=== pstore: (no records) ==="
 }
+# The bootloader may scan out any of the four 1080x2160 buffers inside the
+# splash region, so mirror the console framebuffer to /dev/fb1..fb3: the panel
+# then shows the reader output regardless of the buffer ABL picked.
+copy_fbs() {
+	[ -c /dev/fb0 ] || return 0
+	for n in 1 2 3; do
+		[ -c "/dev/fb$n" ] || continue
+		cat /dev/fb0 > "/dev/fb$n" 2>/dev/null
+	done
+}
 mount -t pstore pstore /sys/fs/pstore 2>/dev/null
 held=0
 while [ "$held" -lt 90 ]; do
@@ -108,6 +118,7 @@ while [ "$held" -lt 90 ]; do
 		echo "=== pstore reader mode: ${held}s / 90s ===" > "$SERIAL" 2>/dev/null
 	fi
 	replay_pstore
+	copy_fbs
 	sleep 10
 	held=$((held + 10))
 done

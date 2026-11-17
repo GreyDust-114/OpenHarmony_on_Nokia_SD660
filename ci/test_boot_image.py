@@ -276,6 +276,14 @@ class BootTargetContractTests(unittest.TestCase):
         self.assertIn("dmesg > \"$SERIAL\"", self.script)
         self.assertIn("/dev/pmsg0", self.script)
 
+    def test_init_script_mirrors_console_to_all_splash_buffers(self):
+        # ABL may scan out any of the four splash buffers; the reader output is
+        # mirrored from fb0 to fb1..fb3 so the panel shows it either way.
+        self.assertIn("copy_fbs", self.script)
+        self.assertIn('cat /dev/fb0 > "/dev/fb$n"', self.script)
+        self.assertLess(self.script.index("replay_pstore\n\tcopy_fbs"),
+                        self.script.index("log \"b2n: initramfs reached userspace"))
+
     def test_init_script_retries_gadget_and_streams_pstore_to_serial(self):
         # dwc3 may probe asynchronously; the earlier init tried the gadget only
         # once, so the ACM serial never appeared in userspace runs. It must
