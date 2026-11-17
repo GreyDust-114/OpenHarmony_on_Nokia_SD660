@@ -189,3 +189,46 @@ runner 为 x86-64，`apt-get install busybox-static` 装的是主机架构包）
 - 该调试补丁已从各目标回退（补丁文件保留在 drafts 备查）。
 - 下一轮（#31）：用**无调试补丁**的内核重新构建，并用本地 quad/ICC DTB 验证 reader
   路径；串口不可用时继续以面板 + pstore 为主，同时排查 dwc3 probe 的其余依赖。
+
+## 外部资料调研（2026-11-17）
+
+试错之外做了一轮资料调研，结论直接决定了后续方案。
+
+### 本地资料
+
+`E:\6-软件工具\手机相关\Nokia7plus` 只有 ROM、TWRP、刷机工具和 vendor ROM（含 Android 13），
+**没有内核源码**；需要 vendor 4.4 DTB 时可以从其中的 boot.img 提取。
+
+### 主线差异（最新 sdm630.dtsi / sdm660.dtsi vs pinned 6.6.101）
+
+1. **USB3 节点**（`usb@a8f8800`）最新主线有 4 个中断：
+   `pwr_event`=GIC_SPI 180、`qusb2_phy`=347、`hs_phy_irq`=133、`ss_phy_irq`=243；
+   去掉 rpmcc 的 `bus` clock 和 `qcom,select-utmi-as-pipe-clk`；
+   dwc3 子节点增加 `snps,dis-u1-entry-quirk` / `dis-u2-entry-quirk`，
+   并可接 USB3 QMP PHY（`usb3_qmpphy`）。
+2. **interconnect provider** 去掉 bus/bus_a RPM clock（bimc/cnoc/snoc 无 clocks，
+   a2noc 只保留 ipa/ufs/usb 相关，mnoc 只保留 iface），属于 2023/2025 的 clock 清理。
+3. **USB gadget/串口不出现的根因**：pinned 6.6.101 的 `dwc3-qcom` **强制**
+   `of_icc_get(dev, "usb-ddr")` 和 `"apps-usb"`，而 sdm630.dtsi 的 usb3 节点没有
+   `interconnects` → probe 返回 -EINVAL，UDC 永远不出现，gadget/串口自然没有。
+   路径合法性已从 `drivers/interconnect/qcom/sdm660.c` 的节点图验证：
+   - `usb-ddr`：a2noc `MASTER_USB3`(8) → bimc `SLAVE_EBI`(5)
+   - `apps-usb`：gnoc `MASTER_APPS_PROC`(0) → cnoc `SLAVE_USB3_0`(34)
+4. 2024-12 上游系列 `[PATCH v3 00/19]`（Prashanth K，SDM630/660 USB）补齐 USB3 的
+   IRQ/QMP PHY/U1-U2 quirk 等；pinned 6.6.101 早于该系列，必要时可整体 backport
+   （或只改 DT 节点 + 补 ICC）。
+5. `sdm660.dtsi` 把 tlmm compatible 覆盖为 `qcom,sdm660-pinctrl`（与我们的 DTB 一致），
+   pinctrl 节点本身无差异；pinctrl panic 仍必须先拿到真实日志。
+6. **postmarketOS 资源**：pmaports 有 `linux-postmarketos-qcom-sdm660` 内核包（贴近主线），
+   但本机到 gitlab.com 的网络被阻断（TLS 失败），需要代理/镜像再取。
+   GitHub 代码搜索没有找到 Nokia 7 Plus 的 mainline DTS。
+
+### 由此确定的下一步（不再盲试）
+
+1. **P1**：用 run-25 内核（已知能进用户态）+ 本地 DTB（加 ICC）boot，观察 USB 串口是否出现；
+   出现则 K1 日志通道成立（本地镜像 `r25-panel-icc.img` 已备好）。
+2. **P2**：串口通后 boot 默认配置（不黑名单 pinctrl）抓 panic 文本 → 修复 pinctrl。
+3. **P3**：串口仍不通时，按最新主线 usb3 节点（4 IRQ、去 rpm bus clock）修改，必要时 backport
+   2024-12 的 USB 补丁系列。
+4. **P4**：面板显示不稳定是 ABL 每次扫描 buffer/stride 不同的硬件行为（同一镜像有时可读、
+   有时花屏，今天再次复现）；K1 日志以 USB 为主，面板显示留给 K2 的 msm DRM/DSI。
